@@ -280,7 +280,7 @@ function makeUuidCsv(){
 			}
 		}
 	}
-	return null;
+	return csvData;
 }
 
 function testA(){
@@ -303,7 +303,7 @@ function testA(){
 
 		//Uuid送信用CSVデータを作成する
 		let sendUuidCsv = makeUuidCsv();
-		if(sendUuidCsv != null){
+		if(sendUuidCsv != ''){
 			requestList(g_dataTypeCREATOR,sendUuidCsv,0);
 			return;
 		}
