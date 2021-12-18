@@ -107,7 +107,7 @@ select {padding: 5px;border-radius: 2.5px;}
 	}
 
 .csVarOne{
-	display: inline-flex;
+	/*display: inline-flex;*/
 	}
 .csVarDiv1{
 	padding: 0;
@@ -139,14 +139,7 @@ select {padding: 5px;border-radius: 2.5px;}
 #csCtrl{
  display: flex;
 }
-.csNoWaku1,.csNoWaku2,.csNoWaku3{
-/*	display: inline-block;
-	vertical-align:top;
-	border:0;
-	padding: 5px;
-	width:100%
-*/
-	}
+
 .csWaku{
 	border-radius: 10px;
 	border:solid 1px;
@@ -168,7 +161,7 @@ select {padding: 5px;border-radius: 2.5px;}
 	padding: 2px 15px 2px 15px;
 	width:80px;
 	}
-.csArrowBtn {
+.csNoWaku2 input {
 	margin: 2.5px 2.5px;
 	padding: 0.5em 2em;
 	border-radius: 2.5px;

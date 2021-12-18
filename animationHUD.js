@@ -225,7 +225,7 @@ function openCloseWaku(argTragetId=null,argChecked=null) {
 //argDataType	g_dataTypeINIT		:初回総件数要求
 //				g_dataTypeLIST		:個別のポーズ情報を要求
 //				g_dataTypeCREATOR	:製作者UUID変換
-function requestList(argDataType,argCreatorUuid,argCurrentIndex){
+function requestList(argDataType,argCreatorUuidCsv,argCurrentIndex){
 
 	let requestData = null;
 	switch(argDataType){
@@ -236,7 +236,7 @@ function requestList(argDataType,argCreatorUuid,argCurrentIndex){
 		requestData = g_dataTypeLIST + ',' + argCurrentIndex;
 		break;
 	case g_dataTypeCREATOR	:
-		requestData = g_dataTypeCREATOR + ',' + argCreatorUuid;
+		requestData = g_dataTypeCREATOR + argCreatorUuidCsv;
 		break;
 	}
 
@@ -256,10 +256,29 @@ function requestList(argDataType,argCreatorUuid,argCurrentIndex){
 		function(data) {
 			if (data.status == 504) {
 				// timeout -> retry
-				requestList(argDataType,argCreatorUuid,argCurrentIndex);
+				requestList(argDataType,argCreatorUuidCsv,argCurrentIndex);
 			}
 		}
 	);
+}
+
+function makeUuidCsv(){
+	//一回に送る最大件数
+	const maxCount = 10;
+	let cnt = 0;
+	let csvData = '';
+	for(let oneUuid in g_uuid2O){
+		let objCreator = g_uuid2O[oneUuid];
+		if(objCreator.pName==null){
+			//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
+
+			csvData += ',' + oneUuid;
+			if(++cnt > maxCount){
+				return csvData;
+			}
+		}
+	}
+	return null;
 }
 
 function testA(){
@@ -280,14 +299,20 @@ function testA(){
 	}else{
 		g_currentIndex += makePoseInfo(g_jsonData);
 
-		for(let oneUuid in g_uuid2O){
-			let objCreator = g_uuid2O[oneUuid];
-			if(objCreator.pName==null){
-				//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
-				requestList(g_dataTypeCREATOR,oneUuid,0);
-				return;
-			}
+		//Uuid送信用CSVデータを作成する
+		let sendUuidCsv = makeUuidCsv();
+		if(sendUuidCsv != null){
+			requestList(g_dataTypeCREATOR,sendUuidCsv,0);
+			return;
 		}
+//		for(let oneUuid in g_uuid2O){
+//			let objCreator = g_uuid2O[oneUuid];
+//			if(objCreator.pName==null){
+//				//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
+//				requestList(g_dataTypeCREATOR,oneUuid,0);
+//				return;
+//			}
+//		}
 
 		if(g_currentIndex < g_totalCount){
 			//ポーズリストの最後まで到達していない場合、要求を行い、関数を終了する。
@@ -363,13 +388,17 @@ function btnMini(){
 //JSON情報をオブジェクトに変換
 function makePoseInfo(argJsonData){
 	let addPoseCount = 0;
-	if(argJsonData.dType==g_dataTypeCREATOR){
-		//作者情報（名前）を処理する
-		let creatorUuid = unescape(argJsonData.uuidEnc);
-		let creatorName = unescape(argJsonData.nameEnc);
+	if(argJsonData.dType == g_dataTypeCREATOR){
 
-		let objCreator = g_uuid2O[creatorUuid];
-		objCreator.pName = creatorName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
+		//製作者情報リスト（'|'区切り）を分割
+		let creatorListPsv = (argJsonData.uuidList).split('|');
+		for(let i=0;i<creatorListPsv.length;i+=2){
+			let creatorUuid = unescape(creatorListPsv[i]);
+			let creatorName = unescape(creatorListPsv[i+1]);
+
+			let objCreator = g_uuid2O[creatorUuid];
+			objCreator.pName = creatorName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
+		}
 
 		return addPoseCount;
 	}
@@ -458,7 +487,9 @@ function makeUI(){
 		objLabel.className = 'csCmnLbl ' + argClassTag;
 
 		if(argText!=null){
-			objLabel.appendChild(document.createTextNode(argText));
+			//objLabel.appendChild(document.createTextNode(argText));
+			//連続したスペースが反映されないため
+			objLabel.innerHTML = argText.replace(' ','&nbsp;');
 		}
 
 		if(argTitle!=null){
@@ -468,11 +499,11 @@ function makeUI(){
 		return objLabel;
 	}
 
-	function makePartsPoseName(argObjPose,argWakuType,argWakuClassTag,argLabelClassTag){
+	function makePartsPoseName(argObjPose,argWakuClassTag,argLabelClassTag){
 		//------------------------------
 		//radioとラベルを囲む枠
 		//------------------------------
-		let objWaku = document.createElement(argWakuType);
+		let objWaku = document.createElement('div');
 		objWaku.className = argWakuClassTag;
 
 		//------------------------------
@@ -487,7 +518,11 @@ function makeUI(){
 		objRadio.onchange = function(){sendPlayAnimation(event.target.custIndexNo);}
 		objWaku.appendChild(objRadio);
 
-		let objPoseLbl = makePartsLabel(objRadio.id,argLabelClassTag,argObjPose.pDisplayName,argObjPose.pName + ' / creator : ' + argObjPose.pCreatorInfo.pName);
+		let displayString = argObjPose.pDisplayName;
+		if(argObjPose.pIsVariation){
+			displayString = argObjPose.pName;
+		}
+		let objPoseLbl = makePartsLabel(objRadio.id,argLabelClassTag,displayString,argObjPose.pName + ' / creator : ' + argObjPose.pCreatorInfo.pName);
 		objWaku.appendChild(objPoseLbl);
 
 		if(argObjPose.pIsParent){
@@ -618,7 +653,7 @@ function makeUI(){
 		//console.log(objPose.pName);
 		let strGroupLbl = (objPose.pGroupInfo.pMemCount==1)?'csNoGroupLbl' + objPose.pGroupInfo.pLevel:'csInGroupLbl'
 		let strClassName = 'csPoseLbl '+ strGroupLbl;
-		let objWaku = makePartsPoseName(objPose,'div',objPose.pCreatorInfo.pCssTag,strClassName);
+		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName);
 		objPose.pObjScrollTarget = objWaku;
 
 		if(objPose.pIsParent){
@@ -634,7 +669,7 @@ function makeUI(){
 					//------------------------------
 					//radioとラベルを囲む枠
 					//------------------------------
-					let objVariationWaku = makePartsPoseName(objPoseVariation,'span','csVarOne','csVarLbl');
+					let objVariationWaku = makePartsPoseName(objPoseVariation,'csVarOne','csVarLbl');
 
 					objPoseVariation.pObjScrollTarget = objVariationWaku;
 
@@ -702,7 +737,9 @@ function makeUI(){
 //	'mirinae: asami 1 animation'
 //	┗'mirinae: asami 1 m animation'
 function makeVariation(argPoseKeyList,argPoseNameList){
-	const isPriorityRegExp = /^(.*)((?:P|Priority)[ _=\-]*\d)$/i;	//優先度っぽいか
+	const isPriorityRegExp = /^(.*)\b((?:P|Priority)[ _=\-]*\d)$/i;	//優先度っぽいか
+	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Priority)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
+	const regExpArray = Array(isPriorityRegExp,isPriorityQuatRegExp);
 	const wordSeparatorRegExp = /([^a-z_])/i;				//単語と判断して区切らない文字列
 
 	function setVariarion(argObjVariation,argDispay,argParentName){
@@ -887,20 +924,25 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 				}
 			}else {
 				let isPriority = false;
-				if(onePoseNameBase.match(isPriorityRegExp) && onePoseName.match(isPriorityRegExp)){
-					//優先度っぽい感じなら
-					//優先度文字列を抜くと一致するかチェック
-					let substredBase  = onePoseNameBase.replace(isPriorityRegExp,'$1');
-					let substredTarget= onePoseName.replace(isPriorityRegExp,'$1');
-					if(substredBase == substredTarget){
-						let priorityBase  = onePoseNameBase.replace(isPriorityRegExp,'$2');
-						let priorityTarget= onePoseName.replace(isPriorityRegExp,'$2');
-						if(priorityBase<priorityTarget){
-							//console.log('Priority:['+priorityBase+']['+onePoseNameBase+']['+priorityTarget+']['+onePoseName+']');
-							setVariarion(objPose,priorityTarget,onePoseNameBase);
-							isPriority = true;
-						}else{
-							//次の機会に処理されるだろう
+
+				for(let i in regExpArray){
+					let regExpPettern = regExpArray[i];
+					if(onePoseNameBase.match(regExpPettern) && onePoseName.match(regExpPettern)){
+						//優先度っぽい感じなら
+						//優先度文字列を抜くと一致するかチェック
+						let substredBase  = onePoseNameBase.replace(regExpPettern,'$1');
+						let substredTarget= onePoseName.replace(regExpPettern,'$1');
+						if(substredBase == substredTarget){
+							let priorityBase  = onePoseNameBase.replace(regExpPettern,'$2');
+							let priorityTarget= onePoseName.replace(regExpPettern,'$2');
+							if(priorityBase<priorityTarget){
+								//console.log('Priority:['+priorityBase+']['+onePoseNameBase+']['+priorityTarget+']['+onePoseName+']');
+								setVariarion(objPose,priorityTarget,onePoseNameBase);
+								isPriority = true;
+								break;
+							}else{
+								//次の機会に処理されるだろう
+							}
 						}
 					}
 				}
@@ -985,6 +1027,14 @@ function makeVariationInfo(){
 
 			objPose.pVariationNameList = poseKeys;
 			//console.log('parent['+objPose.pName+']'+objPose.pVariationNameList);
+		}else if(objPose.pIsVariation){
+			//前後につく記号を削除する
+			let displayString = objPose.pDisplayName
+			displayString = displayString.replace(/^[^a-z0-9]+/i,``);
+			displayString = displayString.replace(/[^a-z0-9]+$/i,``);
+			if(displayString!=''){
+				objPose.pDisplayName = displayString;
+			}
 		}
 	}
 }
@@ -1447,6 +1497,18 @@ function makeNameGroup(){
 				}
 			}
 		}
+
+		//todo:上位グループ配下の場合
+		//複数グループがある場合に限り
+		//単語単位の共通部分を削除してpDisplayNameを設定する
+		//  'CHICQRO: Erotic Dreams - Bento Pose Pack 01 - Pose'
+		//  'CHICQRO: Submissive Female - Bento Pose Pack 01 - Pose'
+		//	↓
+		//  'Erotic Dreams'
+		//  'Submissive Female'
+		//
+		//ただし、pDisplayNameはユニークであること
+
 	}
 
 	//==============================
@@ -1480,9 +1542,10 @@ function makeNameGroup(){
 }
 
 //小文字にして比較
+//先頭の記号は無視する
 function compareLowerCase(a, b) {
-	a = a.toString().toLowerCase();
-	b = b.toString().toLowerCase();
+	a = (a.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
+	b = (b.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	return (a > b) ?  1 :((b > a) ? -1 : 0);
 }
 
