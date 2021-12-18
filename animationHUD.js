@@ -264,7 +264,9 @@ function requestList(argDataType,argCreatorUuidCsv,argCurrentIndex){
 
 function makeUuidCsv(){
 	//一回に送る最大件数
-	const maxCount = 10;
+	//※llRequestAgentDataには0.1秒のディレイがあり
+	//	問い合わせ結果が返ってくる前の時間を考えるとあまり大きくはできない。
+	const maxCount = 20;
 	let cnt = 0;
 	let csvData = '';
 	for(let oneUuid in g_uuid2O){
