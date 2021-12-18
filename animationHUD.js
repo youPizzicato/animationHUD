@@ -393,9 +393,9 @@ function makePoseInfo(argJsonData){
 		//製作者情報リスト（'|'区切り）を分割
 		let creatorListPsv = (argJsonData.uuidList).split('|');
 		for(let i=0;i<creatorListPsv.length;i+=2){
-			let creatorUuid = unescape(creatorListPsv[i]);
-			let creatorName = unescape(creatorListPsv[i+1]);
-
+			let creatorName = unescape(creatorListPsv[i]);
+			let creatorUuid = unescape(creatorListPsv[i+1]);
+			//console.log(creatorUuid+':'+creatorName);
 			let objCreator = g_uuid2O[creatorUuid];
 			objCreator.pName = creatorName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
 		}
@@ -428,7 +428,6 @@ function makePoseInfo(argJsonData){
 				//表示用文字列
 				//※バリエーションだと判定された場合加工される
 				,pDisplayName : argPoseName
-
 
 				//バリエーション情報
 				,pIsParent : false			//バリエーションが存在する
@@ -644,6 +643,10 @@ function makeUI(){
 		let objPose = g_idx2O[i];
 		if(objPose.pIsVariation){
 			//バリエーションは対象外
+			continue;
+		}
+		if(objPose.pGroupInfo == null){
+			//保険
 			continue;
 		}
 
