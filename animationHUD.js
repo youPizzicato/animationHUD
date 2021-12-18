@@ -273,7 +273,7 @@ function makeUuidCsv(){
 			//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
 
 			csvData += ',' + oneUuid;
-			if(++cnt > maxCount){
+			if(++cnt >= maxCount){
 				return csvData;
 			}
 		}
@@ -305,14 +305,6 @@ function testA(){
 			requestList(g_dataTypeCREATOR,sendUuidCsv,0);
 			return;
 		}
-//		for(let oneUuid in g_uuid2O){
-//			let objCreator = g_uuid2O[oneUuid];
-//			if(objCreator.pName==null){
-//				//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
-//				requestList(g_dataTypeCREATOR,oneUuid,0);
-//				return;
-//			}
-//		}
 
 		if(g_currentIndex < g_totalCount){
 			//ポーズリストの最後まで到達していない場合、要求を行い、関数を終了する。
