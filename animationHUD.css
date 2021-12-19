@@ -24,7 +24,7 @@ body {
 input[type=checkbox],input[type=radio] {display: none;}
 select {padding: 5px;border-radius: 2.5px;}
 
-#dPoseList {
+#dPoseTreeList,#dPoseFlatList {
 	height: 100vh;
 	width: 100%;
 	overflow:hidden;
@@ -79,8 +79,16 @@ select {padding: 5px;border-radius: 2.5px;}
 	border-width: 0.5px 2.0px 2.0px 0.5px;
 	}
 
-#playBtn:checked + .csPlayLbl , #timerOn:checked + .csTimerLbl , #btnVariation:checked + .variationLabel, #btnGroup:checked + .groupLabel{background-color: var(--mClOn);}
-.csPlayLbl,.variationLabel,.groupLabel,.csTimerLbl,.csVarLbl{border-radius: 10px;user-select: none;}
+#playBtn:checked + .csPlayLbl , #timerOn:checked + .csTimerLbl , #btnVariation:checked + .variationLabel, #btnGroup:checked + .groupLabel, #btnFlat:checked + .displayLabel{background-color: var(--mClOn);}
+.csPlayLbl,.variationLabel,.groupLabel,.csTimerLbl,.csVarLbl,.displayLabel{
+	border-radius: 10px;
+	user-select: none;
+	}
+.variationLabel,.groupLabel,.displayLabel{
+	display: inline-block;
+	padding: 0.5em;
+	margin:0.2em;
+	}
 .csTimerLbl{padding: 0.3em 1em;}
 
 .csMiniBtn{
@@ -173,3 +181,6 @@ select {padding: 5px;border-radius: 2.5px;}
 	padding: 2px 10px 5px 5px;
 	width:100px;
 	}
+
+#dPoseTreeList {display: block;}
+#dPoseFlatList {display: none;}

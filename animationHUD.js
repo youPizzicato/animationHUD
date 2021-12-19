@@ -4,6 +4,7 @@
 //数字と判断する
 const g_allNumericRegExp = /^[\d#\. ]+$/;
 
+const g_sameLimitLength = 2;
 
 //==============================
 //ポーズ情報
@@ -23,7 +24,7 @@ let g_groupNames = new Object();
 //==============================
 //load後のオブジェクトの格納
 //==============================
-let g_objHead,g_poseList,g_selTimer,g_btnPlay,g_btnTimer;
+let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnFlat,g_btnGroup,g_btnVariation;
 
 //==============================
 //進捗用情報
@@ -33,6 +34,7 @@ let g_debugtId;
 //要素作成後のオブジェクトの格納
 //==============================
 let g_namesPoses;
+let g_namesPosesFlat;
 
 //==============================
 //連携用
@@ -71,8 +73,13 @@ function timerAction(){
 
 //現在選択されているradioの番号を求める（0～
 function getCursorIndex(){
-	for(let i=0;i<g_namesPoses.length;++i){
-		if(g_namesPoses[i].checked){
+	let targetNameList = g_namesPoses;
+	if(g_btnFlat.checked){
+		targetNameList = g_namesPosesFlat;
+	}
+
+	for(let i=0;i<targetNameList.length;++i){
+		if(targetNameList[i].checked){
 			return i;
 		}
 	}
@@ -84,15 +91,26 @@ function getCursorIndex(){
 //	false			true		ひとつ前
 //	false			false		ひとつ後(引数なしの場合の動作)
 function cursorAction(argIsPrev=false,argIsTopBottom=false){
+	let targetNameList = g_namesPoses;
+	if(g_btnFlat.checked){
+		targetNameList = g_namesPosesFlat;
+	}
+
 	//現在行を取得
 	let curIndex = getCursorIndex();
-	const indexMax = (g_namesPoses.length - 1);
+	const indexMax = (targetNameList.length - 1);
 
 	let objScrollTarget = null;
 
 	function isHiddenRow(argCurIndex){
-		let indexNo = g_namesPoses[argCurIndex].custIndexNo;
-		return ((objScrollTarget = g_idx2O[indexNo].pObjScrollTarget).clientHeight<=0);
+		let indexNo = targetNameList[argCurIndex].custIndexNo;
+		let objPose = g_idx2O[indexNo];
+		if(g_btnFlat.checked){
+			objScrollTarget = objPose.pObjFlatScrollTarget;
+		}else{
+			objScrollTarget = objPose.pObjScrollTarget;
+		}
+		return (objScrollTarget.clientHeight<=0);
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -109,7 +127,7 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 	if(isSearchNext){
 		const addVal = (argIsPrev) ? -1:1;
 		//全て非表示の場合もあるので、最大一周までに限定している
-		for(let i=0;i<g_namesPoses.length;++i){
+		for(let i=0;i<targetNameList.length;++i){
 			curIndex += addVal;
 			if(curIndex<0){curIndex = indexMax;
 			}else if(curIndex>indexMax){curIndex = 0;
@@ -119,13 +137,15 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 			}
 		};
 	}
+	if(g_btnFlat.checked){
+		g_poseFlatList.scrollTop = objScrollTarget.offsetTop - g_poseFlatList.offsetTop;
+	}else{
+		g_poseTreeList.scrollTop = objScrollTarget.offsetTop - g_poseTreeList.offsetTop;
+	}
 
-	//指定の位置までスクロール
-	g_poseList.scrollTop = objScrollTarget.offsetTop - g_poseList.offsetTop;
-
-	g_namesPoses[curIndex].checked = true;
+	targetNameList[curIndex].checked = true;
 	//アニメショーン情報の送信
-	sendPlayAnimation(g_namesPoses[curIndex].custIndexNo);
+	sendPlayAnimation(targetNameList[curIndex].custIndexNo);
 }
 
 //指定のIDのスタイルシートを追加する
@@ -161,10 +181,14 @@ function playCtrl(){
 
 	}else{
 		//再開処理
+		let targetNameList = g_namesPoses;
+		if(g_btnFlat.checked){
+			targetNameList = g_namesPosesFlat;
+		}
 
 		let nameIndex = getCursorIndex();
-		if(nameIndex in g_namesPoses){
-			curIndex = g_namesPoses[nameIndex].custIndexNo;
+		if(nameIndex in targetNameList){
+			curIndex = targetNameList[nameIndex].custIndexNo;
 		}
 	}
 	sendPlayAnimation(curIndex);
@@ -185,6 +209,22 @@ function changeCreator(){
 	}
 
 	addStyleElement(styleId,strCss);
+}
+
+function changeFlat(){
+	const styleId = 'cssDisplayFlat';
+	delStyleSheet(styleId);
+
+	let targetDisplayTag = 'dPoseTreeList';
+	let targetHiddenTag = 'dPoseFlatList';
+	if(g_btnFlat.checked){
+		targetDisplayTag = 'dPoseFlatList';
+		targetHiddenTag = 'dPoseTreeList';
+	}
+	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
+	g_btnGroup.disabled = g_btnFlat.checked;
+	g_btnVariation.disabled = g_btnFlat.checked;
+
 }
 
 function openCloseWaku(argTragetId=null,argChecked=null) {
@@ -316,11 +356,8 @@ function testA(){
 
 		//データ全件受信完了
 
-		//バリエーション情報を作成
-		makeVariationInfo();
-
 		//名前によるグルーピング
-		makeNameGroup();
+		groupingByName();
 		//画面を作成する
 		makeUI();
 	}
@@ -431,6 +468,7 @@ function makePoseInfo(argJsonData){
 
 				//HTML情報
 				,pObjScrollTarget : null	//順送りボタンによる移動のためのスクロール先
+				,pObjFlatScrollTarget : null	//順送りボタンによる移動のためのスクロール先
 				,pVariationArea : null		//HTML内のバリエーション格納エリア
 
 				//名前によるグループ情報
@@ -492,7 +530,7 @@ function makeUI(){
 		return objLabel;
 	}
 
-	function makePartsPoseName(argObjPose,argWakuClassTag,argLabelClassTag){
+	function makePartsPoseName(argObjPose,argWakuClassTag,argLabelClassTag,argIsFlat=false){
 		//------------------------------
 		//radioとラベルを囲む枠
 		//------------------------------
@@ -504,21 +542,21 @@ function makeUI(){
 		//------------------------------
 		let objRadio = document.createElement('input');
 		objRadio.type = 'radio';
-		objRadio.name = 'namesPoseList';
+		objRadio.name = ((argIsFlat)?'namesPoseListFlat':'namesPoseList');
 		objRadio.className = 'csPoseRdo';
-		objRadio.id = 'rdo_'+argObjPose.pIndexNo;	//ラベルとの紐づけ用
+		objRadio.id = 'rdo_' + ((argIsFlat)?'Flat':'') + argObjPose.pIndexNo;	//ラベルとの紐づけ用
 		objRadio.custIndexNo = argObjPose.pIndexNo;
 		objRadio.onchange = function(){sendPlayAnimation(event.target.custIndexNo);}
 		objWaku.appendChild(objRadio);
 
 		let displayString = argObjPose.pDisplayName;
-		if(argObjPose.pIsVariation){
+		if((argIsFlat)||(argObjPose.pIsVariation)){
 			displayString = argObjPose.pName;
 		}
 		let objPoseLbl = makePartsLabel(objRadio.id,argLabelClassTag,displayString,argObjPose.pName + ' / creator : ' + argObjPose.pCreatorInfo.pName);
 		objWaku.appendChild(objPoseLbl);
 
-		if(argObjPose.pIsParent){
+		if((!argIsFlat)&&(argObjPose.pIsParent)){
 			//親である場合、バリエーション格納用のエリアを作成する
 
 			//バリエーション表示用ボタン
@@ -603,6 +641,14 @@ function makeUI(){
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+	//フラットなポーズリストを作成する
+	for(let i in g_idx2O){
+		let objPose = g_idx2O[i];
+		let strClassName = 'csPoseLbl';
+		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName,true);
+		objPose.pObjFlatScrollTarget = objWaku;
+		g_poseFlatList.appendChild(objWaku);
+	}
 
 	//------------------------------
 	//グループ枠を先に作成する
@@ -611,7 +657,7 @@ function makeUI(){
 	for(let systemGroup in g_systemGroupList){
 		let oneGroup = g_systemGroupList[systemGroup];
 		if(oneGroup!=null){
-			makeHigherGroup(oneGroup,true,g_poseList);
+			makeHigherGroup(oneGroup,true,g_poseTreeList);
 		}
 	}
 	//通常のグループ枠を作成する
@@ -624,11 +670,11 @@ function makeUI(){
 		let objHigherIn = null;
 		if(oneGroup.pHigherGroupName!=null){
 			//上位グループがある場合、上位グループを先に作成する
-			objHigherIn = makeHigherGroup(oneGroup,true,g_poseList);
+			objHigherIn = makeHigherGroup(oneGroup,true,g_poseTreeList);
 		}
 
 		//通常のグループを作成する
-		let addTarget = (objHigherIn == null)?g_poseList:objHigherIn;
+		let addTarget = (objHigherIn == null)?g_poseTreeList:objHigherIn;
 		makeHigherGroup(oneGroup,false,addTarget);
 	}
 
@@ -643,7 +689,6 @@ function makeUI(){
 			//保険
 			continue;
 		}
-
 		//------------------------------
 		//radioとラベルを囲む枠
 		//------------------------------
@@ -698,15 +743,19 @@ function makeUI(){
 	}
 
 	g_namesPoses = document.getElementsByName('namesPoseList');
+	g_namesPosesFlat = document.getElementsByName('namesPoseListFlat');
 
 	//チェック状態に応じて初期状態にする
 	openCloseWaku('btnGroup',false);
 	openCloseWaku('btnVariation',false);
+	changeFlat();
 
 	delStyleSheet('cssLoading');
 
 	//画面のリサイズはかからない前提
-	g_poseList.style.height = (document.documentElement.clientHeight - g_poseList.offsetTop) + 'px';
+	let divHeight = (document.documentElement.clientHeight - g_poseTreeList.offsetTop) + 'px';
+	g_poseTreeList.style.height = divHeight;
+	g_poseFlatList.style.height = divHeight;
 }
 
 //==============================
@@ -870,36 +919,41 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 		let onePoseNameBase = argPoseNameList[onePoseNameBaseKey];
 		let objPoseBase = g_nm2O[onePoseNameBase];
 		let isWordsA = onePoseNameBase.match(wordSeparatorRegExp);
-		let base2keta = onePoseNameBase.substr(0,2);
+		let base2keta = onePoseNameBase.substr(0,g_sameLimitLength);
 
-		if(bak2Keta != base2keta){
-			//比較対象を減らすために
-			//処理対象の先頭２桁が一致する配列を作成する
-			objTargetList = new Object();;
-			let isfound = false;
-			for(let onePoseNameKey of argPoseKeyList){
-				let onePoseName = argPoseNameList[onePoseNameKey];
+		objTargetList = new Object();;
+		let isfound = false;
+		for(let onePoseNameKey of argPoseKeyList){
+			let onePoseName = argPoseNameList[onePoseNameKey];
 
-				if(base2keta!=onePoseName.substr(0,2)){
-					//先頭２桁が異なる場合は、処理しない
-					if(! isfound){
-						//未一致の場合は、見つかるまでループを抜けない
-						continue;
-					}else{
-						//すでに一致した後の不一致の場合はループを抜ける
-						break;
-					}
+			if(base2keta!=onePoseName.substr(0,g_sameLimitLength)){
+				//先頭２桁が異なる場合は、処理しない
+				if(! isfound){
+					//未一致の場合は、見つかるまでループを抜けない
+					continue;
 				}else{
-					isfound = true;
+					//すでに一致した後の不一致の場合はループを抜ける
+					break;
+				}
+			}else{
+				isfound = true;
 
+				let doSet  = true;
+				//同一グループのものだけを対象にする
+				let objPose = g_nm2O[onePoseName];
+				if((objPoseBase.pGroupInfo!=null)&&(objPose.pGroupInfo!=null)){
+					if(objPoseBase.pGroupInfo.pGroupName != objPose.pGroupInfo.pGroupName){
+						doSet = false;
+					}
+				}
+				if(doSet){
 					objTargetList[onePoseNameKey] = onePoseName;
 				}
+
 			}
-
-			bak2Keta = base2keta;
 		}
+		bak2Keta = base2keta;
 
-		//バリエーション未判定のものだけを対象にする
 		for(let onePoseNameKey in objTargetList){
 			let onePoseName = objTargetList[onePoseNameKey];
 			if(onePoseNameBase==onePoseName){
@@ -1036,8 +1090,28 @@ function makeVariationInfo(){
 	}
 }
 
+//	argTargetStringがargBaseStringに文字を足したものか判定
+//	上記の条件を満たしていても、以下のどちらかを満たしていない場合、falseとする
+//	・追加した文字列長が2文字以上であること
+//	・追加した文字列の先頭が数値であること
+function myStartsWith(argTargetString,argBaseString){
+	let returnValue = false;
+	if(!argTargetString.startsWith(argBaseString)){
+		return returnValue;
+	}
+
+	if(argBaseString.length + g_sameLimitLength >= argTargetString.length){
+		returnValue = true;
+	}
+	let diffString = (argTargetString.slice(argBaseString.length)).trim();
+	if(diffString.substr(0,1).match(g_allNumericRegExp)){
+		returnValue = true;
+	}
+	return returnValue;
+}
+
 //名前でグループ化する
-function makeNameGroup(){
+function groupingByName(){
 	//グループ化の際に文字列を区切る
 	const wordSeparatorForGroupRegExp = /(\W)/;
 	//最後の優先度を含んだ数字を削除
@@ -1138,7 +1212,7 @@ function makeNameGroup(){
 		}else{
 			//２つの文字列の共通部分を取得する
 			let maxLen = Math.min(argPoseA.length,argPoseB.length);
-			for(let len=2;len<=maxLen;++len){
+			for(let len=g_sameLimitLength;len<=maxLen;++len){
 				let poseA = argPoseA.substr(0,len);
 				if(poseA == argPoseB.substr(0,len)){
 					//一致する最長の長さを設定
@@ -1176,10 +1250,7 @@ function makeNameGroup(){
 		let objPose = g_idx2O[i];
 
 		let poseName = objPose.pName;
-		if(objPose.pIsVariation){
-			//バリエーションは対象外
-			continue;
-		}
+
 		//比較用にポーズ名を加工する
 		let compName = poseName;
 		compName = compName.replace(delPriorityRegExp,'$1');
@@ -1195,12 +1266,13 @@ function makeNameGroup(){
 
 			let groupName = compareName(compNamePre,compName,false);
 			if(groupName!=null){
-				if(lastGroupName!=null){
+				if((lastGroupName!=null)&&(lastGroupName!=groupName)){
 					//ひとつ前に成立したグループ名と比較して
 					//	以下の関係にあれば、前回のグループにまとめる
 					//		今回のグループ名  ＝ 前回のグループ名＋「追加分」
-					let unionGroupName = compareName(lastGroupName,compName,false);
-					if(unionGroupName!=null){
+					//		かつ、「追加分」の長さが２文字より長いこと
+					if(myStartsWith(compName,lastGroupName)){
+						unionGroupName = lastGroupName;
 						if(unionGroupName==lastGroupName){
 							groupName = lastGroupName;
 						}else {
@@ -1209,6 +1281,17 @@ function makeNameGroup(){
 							groupName = null;
 						}
 					}else{
+						//todo:単語単位の比較を行う
+						//下記のパターンを丸める
+						//	'Bea Pose 1 Breathing'
+						//	'Bea Pose 1M Breathing'
+						//	'Bea Pose 2 Breathing'
+						//	'Bea Pose 2M Breathing'
+						//差異が数字と数字＋Mなどであれば、差異と同一グループとする？
+
+
+
+
 						//前に確定したグループと一致しない場合
 						//→別のグループとする
 						groupName = null;
@@ -1238,7 +1321,6 @@ function makeNameGroup(){
 					}
 				}
 			}
-
 			lastGroupName = groupName;
 		}
 		objPosePre = objPose;
@@ -1265,19 +1347,21 @@ function makeNameGroup(){
 	for(let oneGroupName in objGroup){
 		//末尾の不要な文字列を削除する
 		let newGroupName = oneGroupName.replace(delLastNumericRegExp,'$1');
+		//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
 		if(!(newGroupName in objGroup)){
 			objGroup[newGroupName] = makeNewGroup(null);
 			fullNameMove(newGroupName,oneGroupName,true);
 		}
 	}
 
+	let groupNamePre = null;
+	let groupKeys = Object.keys(objGroup);
 	//==============================
 	//まとめられるグループの対応①
 	//==============================
 	//	まるめ後の比較
-	let groupKeys = Object.keys(objGroup);
+	//	末尾数字の差異などは、同じグループと判断する
 	groupKeys.sort();
-	let groupNamePre = null;
 	for(let groupName of groupKeys){
 		if(groupNamePre!=null){
 			let mergeGroupName = compareName(groupNamePre,groupName,true);
@@ -1309,7 +1393,7 @@ function makeNameGroup(){
 	groupKeys.sort();
 	for(let groupName of groupKeys){
 		if(groupNamePre!=null){
-			if(groupName.startsWith(groupNamePre)){
+			if(myStartsWith(groupName,groupNamePre)){
 
 				fullNameMove(groupNamePre,groupName,true);
 
@@ -1466,6 +1550,11 @@ function makeNameGroup(){
 			for(let groupName in oneCreatorGroup.pGroupNameList){
 				let oneGroup = objGroup[groupName];
 
+				if(oneGroup.pHigherGroupName!=null){
+					//すでに上位が決まっている場合は、処理しない
+					continue;
+				}
+
 				let doSet = false;
 				if(higherGroupName == g_numericGroupName){
 					//数値グループの場合
@@ -1536,6 +1625,9 @@ function makeNameGroup(){
 			g_nm2O[oneFile].pGroupInfo = oneGroup;
 		}
 	}
+
+	//バリエーション情報を作成
+	makeVariationInfo();
 }
 
 //小文字にして比較
@@ -1563,10 +1655,14 @@ function updateProgress(argTotalCounter=null){
 $(document).ready(function() {
 		//よく使うものを変数で持っておく
 		g_objHead = document.getElementsByTagName('head').item(0);
-		g_poseList = document.getElementById('dPoseList');
+		g_poseTreeList = document.getElementById('dPoseTreeList');
+		g_poseFlatList = document.getElementById('dPoseFlatList');
 		g_selTimer = document.getElementById('selTimer');
 		g_btnPlay = document.getElementById('playBtn');
 		g_btnTimer = document.getElementById('timerOn');
+		g_btnFlat = document.getElementById('btnFlat');
+		g_btnGroup = document.getElementById('btnGroup');
+		g_btnVariation = document.getElementById('btnVariation');
 
 		//timerの間隔設定
 		const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
