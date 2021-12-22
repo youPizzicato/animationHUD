@@ -11,6 +11,8 @@ const g_sameLimitLength = 2;
 //==============================
 let g_idx2O = new Array();	//index(0～) -> object
 let g_nm2O = new Object();	//ポーズ名 -> object
+
+let g_objNormalizationNameList = null;
 //==============================
 //クリエーター名を指すcss class Id
 //==============================
@@ -355,6 +357,10 @@ function testA(){
 		}
 
 		//データ全件受信完了
+		//==============================
+		//名前の正規化
+		//==============================
+		g_objNormalizationNameList =  makeNormalizationNameList();
 
 		//名前によるグルーピング
 		groupingByName();
@@ -450,11 +456,19 @@ function makePoseInfo(argJsonData){
 		}
 		let objCreator = g_uuid2O[argCreatorUuid];
 
+
+		//名前の正規化
+		//区切り文字の前後の空白を削除する
+		let normalizationName = argPoseName.replace(/[ ]*(\W)[ ]*/g,'$1');
+		//連続した空白をまとめる
+		normalizationName = normalizationName.replace(/[ ][ ]*/g,' ');
+
 		let objMe = {
 				//連携情報
 				 pIndexNo : argIndexNo		//HUDのコンテンツ内の連番(0～
 				,pName : argPoseName		//ポーズ名
 				,pUuid : argCreatorUuid		//製作者UUID
+				,pNormalizationName : normalizationName	//正規化した名前
 
 				//表示用文字列
 				//※バリエーションだと判定された場合加工される
@@ -464,7 +478,7 @@ function makePoseInfo(argJsonData){
 				,pIsParent : false			//バリエーションが存在する
 				,pVariationNameList : null	//バリエーションの名前リスト(ソート済)
 				,pIsVariation : false		//これはバリエーションか
-				,pParentName : null			//親の名前	※バリエーションの場合、親のポーズ名が設定される
+				,pObjParent : null			//親のオブジェクト	※バリエーションの場合のみ設定
 
 				//HTML情報
 				,pObjScrollTarget : null	//順送りボタンによる移動のためのスクロール先
@@ -507,6 +521,50 @@ function makePoseInfo(argJsonData){
 	//追加したポーズ数を返す
 	return addPoseCount;
 }
+
+//数値をゼロ詰め数に変換する
+// 以下をバリエーションと認めないための対応
+//			'66 #1'
+//			'66 #10'
+function cnvNum(argString){
+	let splitArray = argString = argString.split(/(\d+)/);
+
+	let joinString = '';
+	for(let i in splitArray){
+		let chkVal = splitArray[i];
+		if(chkVal!=''){
+			if(!isNaN(chkVal)){
+				chkVal = ('00000000000000000000' + chkVal).substr(-20);
+			}
+			joinString += chkVal;
+		}
+	}
+	return joinString;
+}
+
+//正規化した名前のリストを作成する
+//正規化したことで名前が重複した場合
+//	正規化した名前の後に「タブ＋連番」を追加する
+function makeNormalizationNameList(argDoModifyNumber=false){
+	let objNormalizationName = new Object();
+	let objNormalizationNameUniq = new Object();
+	for(let oneName in g_nm2O){
+		let normalizationName = g_nm2O[oneName].pNormalizationName;
+		if(argDoModifyNumber){
+			normalizationName = cnvNum(normalizationName);
+		}
+		if(normalizationName in objNormalizationNameUniq){
+			++objNormalizationNameUniq[normalizationName];
+			normalizationName = normalizationName + '\t' + objNormalizationNameUniq[normalizationName];
+			console.log('not uniq');
+		}else{
+			objNormalizationNameUniq[normalizationName] = 0;
+		}
+		objNormalizationName[normalizationName] = oneName;
+	}
+	return objNormalizationName;
+}
+
 
 //基本要素を作成する
 function makeUI(){
@@ -641,9 +699,21 @@ function makeUI(){
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+	//==============================
+	//正規化した名前のソート
+	//==============================
+	//空白の数などで並びが変わってしまうため
+	let objNormalizationNameList =  makeNormalizationNameList(true);
+	let normalKeys = Object.keys(objNormalizationNameList);
+	normalKeys.sort(compareLowerCase);
+
 	//フラットなポーズリストを作成する
-	for(let i in g_idx2O){
-		let objPose = g_idx2O[i];
+//	for(let i in g_idx2O){
+//		let objPose = g_idx2O[i];
+	for(let oneNormalName of normalKeys){
+		let oneName = objNormalizationNameList[oneNormalName];
+		let objPose = g_nm2O[oneName];
+
 		let strClassName = 'csPoseLbl';
 		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName,true);
 		objPose.pObjFlatScrollTarget = objWaku;
@@ -678,9 +748,14 @@ function makeUI(){
 		makeHigherGroup(oneGroup,false,addTarget);
 	}
 
-	//ポーズを作成する
-	for(let i in g_idx2O){
-		let objPose = g_idx2O[i];
+	//ポーズリストを作成する
+//	for(let i in g_idx2O){
+//		let objPose = g_idx2O[i];
+	for(let oneNormalName of normalKeys){
+		let oneName = objNormalizationNameList[oneNormalName];
+		let objPose = g_nm2O[oneName];
+
+
 		if(objPose.pIsVariation){
 			//バリエーションは対象外
 			continue;
@@ -782,22 +857,22 @@ function makeUI(){
 //		↓
 //	'mirinae: asami 1 animation'
 //	┗'mirinae: asami 1 m animation'
-function makeVariation(argPoseKeyList,argPoseNameList){
-	const isPriorityRegExp = /^(.*)\b((?:P|Priority)[ _=\-]*\d)$/i;	//優先度っぽいか
-	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Priority)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
+function makeVariationSub(argPoseKeyList,argPoseNameList){
+	const isPriorityRegExp = /^(.*)\b((?:P|Priority|V|Version)[ _=\-]*\d)$/i;	//優先度っぽいか
+	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Priority|V|Version)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
 	const regExpArray = Array(isPriorityRegExp,isPriorityQuatRegExp);
 	const wordSeparatorRegExp = /([^a-z_])/i;				//単語と判断して区切らない文字列
 
-	function setVariarion(argObjVariation,argDispay,argParentName){
-		let objPoseParent = g_nm2O[argParentName];
+	function setVariarion(argObjVariation,argDispay,argObjParent){
+		let objPoseParent = argObjParent;
 
 		if(objPoseParent.pIsVariation){
 			//親に指定しようとしているものがバリエーションだった場合
 
-			//親の親の名前を取得
-			argParentName = objPoseParent.pParentName;
+			//親の親を取得
+			argObjParent = objPoseParent.pObjParent;
 
-			if(argObjVariation.pName.startsWith(argParentName)){
+			if(argObjVariation.pNormalizationName.startsWith(argObjParent.pNormalizationName)){
 				//親との差異を取得する
 				//	①親
 				//	②┗バリエーション
@@ -810,7 +885,7 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 				//	②'aaaaaaM'
 				//	上記の場合、②は①のバリエーションと判断する
 
-				argDispay = (argObjVariation.pName.slice(argParentName.length)).trim();
+				argDispay = (argObjVariation.pNormalizationName.slice(argObjParent.pNormalizationName.length)).trim();
 			}else{
 				argDispay = objPoseParent.pDisplayName + ' ' + argDispay;
 			}
@@ -822,10 +897,10 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 		argObjVariation.pIsParent = false;		//すでに親認定されている場合もあるので解除
 		argObjVariation.pIsVariation = true;
 		argObjVariation.pDisplayName = argDispay;
-		argObjVariation.pParentName = argParentName;
+		argObjVariation.pObjParent = argObjParent;
 
 		//親にバリエーションの情報を設定する
-		objPoseParent = g_nm2O[argParentName];
+		objPoseParent = argObjParent;
 		if(objPoseParent.pVariationNameList==null){
 			objPoseParent.pVariationNameList = new Object();
 		}
@@ -836,8 +911,8 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 	//単語レベルに分解してバリエーション判定を行う
 	//------------------------------
 	function makeVariationByWord(argObjPoseBase,argObjPoseTarget){
-		let poseNameBase   = argObjPoseBase.pName;
-		let poseNameTarget = argObjPoseTarget.pName;
+		let poseNameBase   = argObjPoseBase.pNormalizationName;
+		let poseNameTarget = argObjPoseTarget.pNormalizationName;
 
 		//単語単位に区切る
 		let arrayBase   = poseNameBase.split(wordSeparatorRegExp);
@@ -902,13 +977,13 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 		}
 
 		let objPoseVariation = argObjPoseTarget;
-		let parentName = poseNameBase;
+		let objParent = argObjPoseBase;
 
 		if(poseNameBase.length > poseNameTarget.length){
 			objPoseVariation = argObjPoseBase;
-			parentName = poseNameTarget;
+			objParent = argObjPoseTarget;
 		}
-		setVariarion(objPoseVariation,diffstr,parentName);
+		setVariarion(objPoseVariation,diffstr,objParent);
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -918,15 +993,18 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 	for(let onePoseNameBaseKey of argPoseKeyList){
 		let onePoseNameBase = argPoseNameList[onePoseNameBaseKey];
 		let objPoseBase = g_nm2O[onePoseNameBase];
-		let isWordsA = onePoseNameBase.match(wordSeparatorRegExp);
-		let base2keta = onePoseNameBase.substr(0,g_sameLimitLength);
+		let poseNameBase = objPoseBase.pNormalizationName;
+		let isWordsA = poseNameBase.match(wordSeparatorRegExp);
+		let base2keta = poseNameBase.substr(0,g_sameLimitLength);
 
 		objTargetList = new Object();;
 		let isfound = false;
 		for(let onePoseNameKey of argPoseKeyList){
 			let onePoseName = argPoseNameList[onePoseNameKey];
+			let objPoseTarget = g_nm2O[onePoseName];
+			let poseNameTarget = objPoseTarget.pNormalizationName;
 
-			if(base2keta!=onePoseName.substr(0,g_sameLimitLength)){
+			if(base2keta!=poseNameTarget.substr(0,g_sameLimitLength)){
 				//先頭２桁が異なる場合は、処理しない
 				if(! isfound){
 					//未一致の場合は、見つかるまでループを抜けない
@@ -940,7 +1018,7 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 
 				let doSet  = true;
 				//同一グループのものだけを対象にする
-				let objPose = g_nm2O[onePoseName];
+				let objPose = objPoseTarget;
 				if((objPoseBase.pGroupInfo!=null)&&(objPose.pGroupInfo!=null)){
 					if(objPoseBase.pGroupInfo.pGroupName != objPose.pGroupInfo.pGroupName){
 						doSet = false;
@@ -956,39 +1034,41 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 
 		for(let onePoseNameKey in objTargetList){
 			let onePoseName = objTargetList[onePoseNameKey];
-			if(onePoseNameBase==onePoseName){
+			let objPoseTarget = g_nm2O[onePoseName];
+			let poseNameTarget = objPoseTarget.pNormalizationName;
+			if(poseNameBase==poseNameTarget){
 				//比較元と比較先が完全一致する時は、処理しない
 				continue;
 			}
 
-			let objPose = g_nm2O[onePoseName];
+			let objPose = objPoseTarget;
 
-			if(onePoseName.startsWith(onePoseNameBase)){
+			if(poseNameTarget.startsWith(poseNameBase)){
 				//ポーズ②の名前がポーズ①の名前から始まる
 				//	①'aaaaaa'
 				//	②'aaaaaaM'
 				//	上記の場合、②は①のバリエーションと判断する
 
-				let diffstr = (onePoseName.slice(onePoseNameBase.length)).trim();
+				let diffstr = (poseNameTarget.slice(poseNameBase.length)).trim();
 				if(!diffstr.substr(0,1).match(g_allNumericRegExp)){
-					setVariarion(objPose,diffstr,onePoseNameBase);
+					setVariarion(objPose,diffstr,objPoseBase);
 				}
 			}else {
 				let isPriority = false;
 
 				for(let i in regExpArray){
 					let regExpPettern = regExpArray[i];
-					if(onePoseNameBase.match(regExpPettern) && onePoseName.match(regExpPettern)){
+					if(poseNameBase.match(regExpPettern) && poseNameTarget.match(regExpPettern)){
 						//優先度っぽい感じなら
 						//優先度文字列を抜くと一致するかチェック
-						let substredBase  = onePoseNameBase.replace(regExpPettern,'$1');
-						let substredTarget= onePoseName.replace(regExpPettern,'$1');
+						let substredBase  = poseNameBase.replace(regExpPettern,'$1');
+						let substredTarget= poseNameTarget.replace(regExpPettern,'$1');
 						if(substredBase == substredTarget){
-							let priorityBase  = onePoseNameBase.replace(regExpPettern,'$2');
-							let priorityTarget= onePoseName.replace(regExpPettern,'$2');
+							let priorityBase  = poseNameBase.replace(regExpPettern,'$2');
+							let priorityTarget= poseNameTarget.replace(regExpPettern,'$2');
 							if(priorityBase<priorityTarget){
-								//console.log('Priority:['+priorityBase+']['+onePoseNameBase+']['+priorityTarget+']['+onePoseName+']');
-								setVariarion(objPose,priorityTarget,onePoseNameBase);
+								//console.log('Priority:['+priorityBase+']['+poseNameBase+']['+priorityTarget+']['+poseNameTarget+']');
+								setVariarion(objPose,priorityTarget,objPoseBase);
 								isPriority = true;
 								break;
 							}else{
@@ -999,7 +1079,7 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 				}
 
 				if(! isPriority){
-					if((isWordsA)&&(onePoseName.match(wordSeparatorRegExp))){
+					if((isWordsA)&&(poseNameTarget.match(wordSeparatorRegExp))){
 						//単語レベルに分割できる場合
 						//------------------------------
 						//単語レベルに分解してバリエーション判定を行う
@@ -1016,27 +1096,6 @@ function makeVariation(argPoseKeyList,argPoseNameList){
 //	'Bea Pose 1 Breathing'
 //	'Bea Pose 1M Breathing'
 function makeVariationInfo(){
-
-	//数値をゼロ詰め数に変換する
-	// 以下をバリエーションと認めないための対応
-	//			'66 #1'
-	//			'66 #10'
-	function cnvNum(argString){
-		let splitArray = argString = argString.split(/(\d+)/);
-
-		let joinString = '';
-		for(let i in splitArray){
-			let chkVal = splitArray[i];
-			if(chkVal!=''){
-				if(!isNaN(chkVal)){
-					chkVal = ('00000000000000000000' + chkVal).substr(-20);
-				}
-				joinString += chkVal;
-			}
-		}
-		return joinString;
-	}
-
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
 	//製作者別に分ける
@@ -1063,23 +1122,24 @@ function makeVariationInfo(){
 		let poseKeys = Object.keys(poseList);
 		poseKeys.sort();
 
-		makeVariation(poseKeys,poseList);
+		makeVariationSub(poseKeys,poseList);
 	}
 
 	//------------------------------
-	//バリエーション情報をソートして再設定する
+	//pVariationNameListをソート
 	//------------------------------
 	for(let i in g_idx2O){
 		let objPose = g_idx2O[i];
 		if(objPose.pIsParent){
 			let poseList = objPose.pVariationNameList;
 			let poseKeys = Object.keys(poseList);
-			poseKeys.sort();
+			poseKeys.sort(compareLowerCase);
 
 			objPose.pVariationNameList = poseKeys;
 			//console.log('parent['+objPose.pName+']'+objPose.pVariationNameList);
 		}else if(objPose.pIsVariation){
 			//前後につく記号を削除する
+			//	todo:バリエーションでは使わないので、この処理は不要
 			let displayString = objPose.pDisplayName
 			displayString = displayString.replace(/^[^a-z0-9]+/i,``);
 			displayString = displayString.replace(/[^a-z0-9]+$/i,``);
@@ -1097,14 +1157,18 @@ function makeVariationInfo(){
 function myStartsWith(argTargetString,argBaseString){
 	let returnValue = false;
 	if(!argTargetString.startsWith(argBaseString)){
+		//基本の名前から始まっていない場合は即、終了
 		return returnValue;
 	}
 
 	if(argBaseString.length + g_sameLimitLength >= argTargetString.length){
+		//差異のある文字数が規定数以下であれば、一致と判断する
 		returnValue = true;
 	}
 	let diffString = (argTargetString.slice(argBaseString.length)).trim();
+	diffString = diffString.replace(/^[^a-z0-9]+/i,'');
 	if(diffString.substr(0,1).match(g_allNumericRegExp)){
+		//差異の１文字目が数字であればOK
 		returnValue = true;
 	}
 	return returnValue;
@@ -1118,7 +1182,7 @@ function groupingByName(){
 	//	'Aiko Animation 1 Priority 4'
 	//		↓
 	//	'Aiko Animation 1'
-	const delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Priority)[ ]*[^a-z]+$/i;
+	const delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Priority|V|Version)[ ]*[^a-z]+$/i;
 	//最後の数字などを除去
 	//	'STUN Anim - Malvene 1'
 	//		↓
@@ -1239,30 +1303,47 @@ function groupingByName(){
 		return (retString=='')?null:retString;
 	}
 
+	//比較用にポーズ名を加工する
+	function modifyForCompare(argPoseName){
+		let returnPoseName = argPoseName;
+		returnPoseName = returnPoseName.replace(delPriorityRegExp,'$1');
+		returnPoseName = returnPoseName.replace(delLastNumericRegExp,'$1');
+		return returnPoseName;
+	}
+
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
+	//==============================
+	//正規化した名前のソート
+	//==============================
+	//空白の数などで並びが変わってしまうため
+	let normalKeys = Object.keys(g_objNormalizationNameList);
+	normalKeys.sort();
+
+	//==============================
 	//上の行・下の行での比較を行う。
+	//==============================
 	//同一製作者かどうかは問わない
 	//※todo:この時点で同一製作者単位で処理を行ってもよかったかもしれない。
 	let lastGroupName=null;
 	let objPosePre = null;
-	for(let i in g_idx2O){
-		let objPose = g_idx2O[i];
+	for(let oneNormalName of normalKeys){
+		let oneName = g_objNormalizationNameList[oneNormalName];
+		let objPose = g_nm2O[oneName];
 
 		let poseName = objPose.pName;
 
 		//比較用にポーズ名を加工する
-		let compName = poseName;
-		compName = compName.replace(delPriorityRegExp,'$1');
-		compName = compName.replace(delLastNumericRegExp,'$1');
+		//let compName = modifyForCompare(poseName);
+		let compName = modifyForCompare(objPose.pNormalizationName);
 
 		if(objPosePre!=null){
 			let poseNamePre = objPosePre.pName;
 			let compNamePre = poseNamePre;
 
 			//比較用にポーズ名を加工する
-			compNamePre = compNamePre.replace(delPriorityRegExp,'$1');
-			compNamePre = compNamePre.replace(delLastNumericRegExp,'$1');
+			//compNamePre = modifyForCompare(compNamePre);
+			compNamePre = modifyForCompare(objPosePre.pNormalizationName);
 
 			let groupName = compareName(compNamePre,compName,false);
 			if(groupName!=null){
@@ -1289,7 +1370,7 @@ function groupingByName(){
 						//	'Bea Pose 2M Breathing'
 						//差異が数字と数字＋Mなどであれば、差異と同一グループとする？
 
-
+						//console.log('lastGroupName:['+lastGroupName+']compName:['+compName+']groupName:['+groupName+']');
 
 
 						//前に確定したグループと一致しない場合
@@ -1311,7 +1392,8 @@ function groupingByName(){
 					}
 
 					if(Object.keys(objPoseList).length>0){
-						//グループに属するファイルが存在する場合
+						//グループに属するファイルが存在する場合のみ処理を行う。
+
 						if(!(groupName in objGroup)){
 							objGroup[groupName] = makeNewGroup(objPoseList);
 						}else{
@@ -1347,8 +1429,9 @@ function groupingByName(){
 	for(let oneGroupName in objGroup){
 		//末尾の不要な文字列を削除する
 		let newGroupName = oneGroupName.replace(delLastNumericRegExp,'$1');
-		//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
+
 		if(!(newGroupName in objGroup)){
+			//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
 			objGroup[newGroupName] = makeNewGroup(null);
 			fullNameMove(newGroupName,oneGroupName,true);
 		}
@@ -1377,6 +1460,7 @@ function groupingByName(){
 
 				groupNamePre = mergeGroupName;
 			}else{
+				//console.log('none groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 				groupNamePre = groupName;
 			}
 		}else{
@@ -1398,6 +1482,8 @@ function groupingByName(){
 				fullNameMove(groupNamePre,groupName,true);
 
 				groupName = groupNamePre;
+			}else{
+				//console.log('none2 groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 			}
 		}
 		groupNamePre = groupName;
@@ -1522,6 +1608,8 @@ function groupingByName(){
 								//上位グループ名と連番を採番
 								newGroupList[sameName] = higherGroupSeq++;
 							}
+						}else{
+							//console.log('none3 groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 						}
 					}
 				}

@@ -62,11 +62,11 @@ select {padding: 5px;border-radius: 2.5px;}
 	background-color: var(--mClRowAnim);
 	transition: 0.2s;
 }
-.csInGroupLbl{margin:0 0 0 1em;}
+.csInGroupLbl{margin:0 0 0 0.5em;}
 .csNoGroupLbl1{margin:0 0 0 0em;}
-.csNoGroupLbl2{margin:0 0 0 1em;}
+.csNoGroupLbl2{margin:0 0 0 0.5em;}
 .csGroupLbl1{margin:0 0 0 0em;}
-.csGroupLbl2{margin:0 0 0 1em;}
+.csGroupLbl2{margin:0 0 0 0.5em;}
 
 .csVarLbl{
 	margin: 0 0.1em;
@@ -119,11 +119,11 @@ select {padding: 5px;border-radius: 2.5px;}
 	}
 .csVarDiv1{
 	padding: 0;
-	margin: 0.2em 0.2em 0.2em 2em;
+	margin: 0.2em 0.2em 0.2em 1em;
 	}
 .csVarDiv2{
 	padding: 0;
-	margin: 0.2em 0.2em 0.2em 4em;
+	margin: 0.2em 0.2em 0.2em 2em;
 	}
 
 .csVarBtnLbl {
