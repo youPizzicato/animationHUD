@@ -147,7 +147,7 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 
 	targetNameList[curIndex].checked = true;
 	//アニメショーン情報の送信
-	sendPlayAnimation(targetNameList[curIndex].custIndexNo);
+	sendCommand('CTRL',targetNameList[curIndex].custIndexNo);
 }
 
 //指定のIDのスタイルシートを追加する
@@ -193,7 +193,7 @@ function playCtrl(){
 			curIndex = targetNameList[nameIndex].custIndexNo;
 		}
 	}
-	sendPlayAnimation(curIndex);
+	sendCommand('CTRL',curIndex);
 }
 
 
@@ -369,10 +369,16 @@ function testA(){
 	}
 }
 
+//コマンドを送信する
 //アニメーション再生指示を送る
 //	argIndexNo	-1：停止を送信
 //				0以降：in worldのコンテンツ内のポーズ番号
-function sendPlayAnimation(argIndexNo){
+//最小化指示を送る
+function sendCommand(argAction,argIndexNo){
+	let command = argAction;
+	if(argAction=='CTRL'){
+		command = 'CTRL,' + argIndexNo;
+	}
 	if(argIndexNo>=0){
 		//再生指示
 		if(! g_btnPlay.checked){
@@ -384,7 +390,7 @@ function sendPlayAnimation(argIndexNo){
 		{
 			'type': 'POST'
 			,'url': location.href
-			,'data' : 'CTRL,' + argIndexNo
+			,'data' : command
 		}
 	).done(
 		function(data) {
@@ -394,33 +400,12 @@ function sendPlayAnimation(argIndexNo){
 		function(data) {
 			if (data.status == 504) {
 				// timeout -> retry
-				sendPlayAnimation(argIndexNo);
+				sendCommand(argAction,argIndexNo);
 			}
 		}
 	);
 }
 
-//最小化指示を送る
-function btnMini(){
-	$.ajax(
-		{
-			'type': 'POST'
-			,'url': location.href
-			,'data' : 'MINI'
-		}
-	).done(
-		function(data) {
-			//何もしない
-		}
-	).fail(
-		function(data) {
-			if (data.status == 504) {
-				// timeout -> retry
-				btnMini();
-			}
-		}
-	);
-}
 
 //JSON情報をオブジェクトに変換
 function makePoseInfo(argJsonData){
@@ -600,7 +585,7 @@ function makeUI(){
 		objRadio.className = 'csPoseRdo';
 		objRadio.id = 'rdo_' + ((argIsFlat)?'Flat':'') + argObjPose.pIndexNo;	//ラベルとの紐づけ用
 		objRadio.custIndexNo = argObjPose.pIndexNo;
-		objRadio.onchange = function(){sendPlayAnimation(event.target.custIndexNo);}
+		objRadio.onchange = function(){sendCommand('CTRL',event.target.custIndexNo);}
 		objWaku.appendChild(objRadio);
 
 		let displayString = argObjPose.pDisplayName;
@@ -800,6 +785,12 @@ function makeUI(){
 	}
 	let nameKeys = Object.keys(nameList);
 	nameKeys.sort(compareLowerCase);
+
+	let optAll = document.createElement('option');
+	optAll.text = '---all creators---';
+	optAll.value = 'all';
+	objSelect.appendChild(optAll);
+
 	for(let oneName of nameKeys){
 		let objCreator = nameList[oneName];
 		let opt = document.createElement('option');
@@ -816,7 +807,7 @@ function makeUI(){
 	openCloseWaku('btnVariation',false);
 	changeFlat();
 
-	delStyleSheet('cssLoading');
+	addStyleElement('cssDisplayMain','#csMain{display:block;}#csProgress{display:none;}');
 
 	//画面のリサイズはかからない前提
 	let divHeight = (document.documentElement.clientHeight - g_poseTreeList.offsetTop) + 'px';
@@ -1755,27 +1746,143 @@ function updateProgress(argTotalCounter=null){
 	updateProgress.objBar.value = updateProgress.counter;
 }
 
+function makeBaseHtml(){
+	function addElementDiv(argAppendObject,argId=null,argClassName=null){
+		let objElement = document.createElement('div');
+		if(argId != null){
+			objElement.id = argId;
+		}
+		if(argClassName != null){
+			objElement.className = argClassName;
+		}
+
+		if(argAppendObject != null){
+			argAppendObject.appendChild(objElement);
+		}
+		return objElement;
+	}
+
+	function addElementSelect(argAppendObject,argId,argOnChange){
+		let objElement = document.createElement('select');
+		objElement.id = argId;
+		objElement.onchange = argOnChange;
+
+		return argAppendObject.appendChild(objElement);
+	}
+
+	function addElementButton(argAppendObject,argId,argClassName,argValue,argOnClick,argDoLineFeed){
+		let objElement = document.createElement('input');
+		objElement.type = 'button';
+		if(argId != null){
+			objElement.id = argId;
+		}
+		if(argClassName != null){
+			objElement.className = argClassName;
+		}
+		objElement.value = argValue;
+		objElement.onclick = argOnClick;
+
+		argAppendObject.appendChild(objElement);
+		if(argDoLineFeed){
+			argAppendObject.appendChild(document.createElement('br'));
+		}
+	}
+
+	function addElementCheckAndLabel(argAppendObject,argId,argCheckClassName,argLabelClassName,argChecked,argLabelText,argOnClick){
+		let objCheckBox = document.createElement('input');
+		objCheckBox.type = 'checkbox';
+		objCheckBox.id = argId;
+		if(argCheckClassName!=null){
+			objCheckBox.className = argCheckClassName;
+		}
+		objCheckBox.onclick = argOnClick;
+		objCheckBox.checked = argChecked;
+
+		let objLabel = document.createElement('label');
+		objLabel.htmlFor = objCheckBox.id;
+		objLabel.className = argLabelClassName;
+		objLabel.innerHTML = argLabelText.replace(' ','&nbsp;');
+
+		argAppendObject.appendChild(objCheckBox);
+		argAppendObject.appendChild(objLabel);
+		return objCheckBox;
+	}
+
+	let objMain = addElementDiv(null,'csMain');
+	let objCtrl = addElementDiv(objMain,'csCtrl');
+
+	//==============================
+	//絞り込み・タイマー
+	//==============================
+	let objCtrl01 = addElementDiv(objCtrl,null,'csNoWaku1');
+	let objCtrl01Sub01 = addElementDiv(objCtrl01,null,'csWaku');
+
+	addElementSelect(objCtrl01Sub01,'selCreatorIdx',function(){changeCreator();});
+	objCtrl01Sub01.appendChild(document.createElement('br'));
+	g_btnFlat = addElementCheckAndLabel(objCtrl01Sub01,'btnFlat',null,'displayLabel csCmnLbl',false,'flat mode',function(){changeFlat()});
+	g_btnGroup = addElementCheckAndLabel(objCtrl01Sub01,'btnGroup',null,'groupLabel csCmnLbl',false,'group',function(){openCloseWaku();});
+	g_btnVariation = addElementCheckAndLabel(objCtrl01Sub01,'btnVariation',null,'variationLabel csCmnLbl',false,'variations',function(){openCloseWaku();});
+
+
+	let objCtrl01Sub02 = addElementDiv(objCtrl01,null,'csWaku');
+
+	g_btnTimer = addElementCheckAndLabel(objCtrl01Sub02,'timerOn',null,'csTimerLbl csCmnLbl',false,'timer',function(){timerAction();});
+	g_selTimer = addElementSelect(objCtrl01Sub02,'selTimer',function(){timerAction();});
+
+	//timerの間隔設定
+	const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
+	arrayTime.forEach(function(element){
+			let opt = document.createElement('option');
+			opt.text = (opt.value = element)+ ' sec';
+			g_selTimer.appendChild(opt);
+		});
+	g_selTimer.selectedIndex = 0;
+
+	//==============================
+	//カーソル
+	//==============================
+	let objCtrl02 = addElementDiv(objCtrl,null,'csNoWaku2');
+	addElementButton(objCtrl02,null,null,'⤒',function(){cursorAction(true,true);},true);
+	addElementButton(objCtrl02,null,null,'↑',function(){cursorAction(true,false);},true);
+	addElementButton(objCtrl02,null,null,'↓',function(){cursorAction(false,false);},true);
+	addElementButton(objCtrl02,null,null,'⤓',function(){cursorAction(false,true);},false);
+
+	//==============================
+	//HUDのコントロール
+	//==============================
+	let objCtrl03 = addElementDiv(objCtrl,null,'csNoWaku3');
+
+	addElementButton(objCtrl03,null,'csActBtn csMiniBtn','MINI',function(){sendCommand('MINI');},true);
+	addElementButton(objCtrl03,null,'csActBtn csDetachBtn','DETACH',function(){sendCommand('DETACH');},true);
+
+	g_btnPlay = addElementCheckAndLabel(objCtrl03,'playBtn','csActBtn','csPlayLbl csCmnLbl',true,'PLAY',function(){playCtrl();});
+
+	//==============================
+	//ポーズリスト
+	//==============================
+	g_poseTreeList = addElementDiv(objMain,'dPoseTreeList');
+	g_poseFlatList = addElementDiv(objMain,'dPoseFlatList');
+
+	//==============================
+	//プログレスバー
+	//==============================
+	let objProgressWaku = addElementDiv(null,'csProgress');
+	let objProgress = document.createElement('progBar');
+	objProgress.id = 'progBar';
+	objProgress.value = 0;
+	objProgress.max = 100;
+	objProgressWaku.appendChild(objProgress);
+
+	let docBody = document.body;
+	docBody.appendChild(objMain);
+	docBody.appendChild(objProgressWaku);
+}
+
 $(document).ready(function() {
 		//よく使うものを変数で持っておく
 		g_objHead = document.getElementsByTagName('head').item(0);
-		g_poseTreeList = document.getElementById('dPoseTreeList');
-		g_poseFlatList = document.getElementById('dPoseFlatList');
-		g_selTimer = document.getElementById('selTimer');
-		g_btnPlay = document.getElementById('playBtn');
-		g_btnTimer = document.getElementById('timerOn');
-		g_btnFlat = document.getElementById('btnFlat');
-		g_btnGroup = document.getElementById('btnGroup');
-		g_btnVariation = document.getElementById('btnVariation');
 
-		//timerの間隔設定
-		const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
-		arrayTime.forEach(function(element){
-				let opt = document.createElement('option');
-				opt.text = (opt.value = element)+ ' sec';
-				g_selTimer.appendChild(opt);
-			});
-		g_selTimer.selectedIndex = 0;
-
+		makeBaseHtml();
 
 		let isLocal = (location.href).startsWith('file://');
 		if(isLocal){
