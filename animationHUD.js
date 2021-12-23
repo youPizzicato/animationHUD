@@ -21,7 +21,7 @@ let g_uuid2O = new Object();
 //==============================
 //グループ名リスト（ソート済）
 //==============================
-let g_groupNames = new Object();
+let g_groupNames = null;
 
 //==============================
 //load後のオブジェクトの格納
@@ -545,22 +545,18 @@ function cnvNum(argString){
 //正規化した名前のリストを作成する
 //正規化したことで名前が重複した場合
 //	正規化した名前の後に「タブ＋連番」を追加する
-function makeNormalizationNameList(argDoModifyNumber=false){
+function makeNormalizationNameList(){
 	let objNormalizationName = new Object();
 	let objNormalizationNameUniq = new Object();
 	for(let oneName in g_nm2O){
-		let normalizationName = g_nm2O[oneName].pNormalizationName;
-		if(argDoModifyNumber){
-			normalizationName = cnvNum(normalizationName);
-		}
-		if(normalizationName in objNormalizationNameUniq){
-			++objNormalizationNameUniq[normalizationName];
-			normalizationName = normalizationName + '\t' + objNormalizationNameUniq[normalizationName];
-			console.log('not uniq');
+		let normalizationKey = cnvNum(g_nm2O[oneName].pNormalizationName);
+		if(normalizationKey in objNormalizationNameUniq){
+			++objNormalizationNameUniq[normalizationKey];
+			normalizationKey = normalizationKey + '\t' + objNormalizationNameUniq[normalizationKey];
 		}else{
-			objNormalizationNameUniq[normalizationName] = 0;
+			objNormalizationNameUniq[normalizationKey] = 0;
 		}
-		objNormalizationName[normalizationName] = oneName;
+		objNormalizationName[normalizationKey] = oneName;
 	}
 	return objNormalizationName;
 }
@@ -703,15 +699,12 @@ function makeUI(){
 	//正規化した名前のソート
 	//==============================
 	//空白の数などで並びが変わってしまうため
-	let objNormalizationNameList =  makeNormalizationNameList(true);
-	let normalKeys = Object.keys(objNormalizationNameList);
+	let normalKeys = Object.keys(g_objNormalizationNameList);
 	normalKeys.sort(compareLowerCase);
 
 	//フラットなポーズリストを作成する
-//	for(let i in g_idx2O){
-//		let objPose = g_idx2O[i];
 	for(let oneNormalName of normalKeys){
-		let oneName = objNormalizationNameList[oneNormalName];
+		let oneName = g_objNormalizationNameList[oneNormalName];
 		let objPose = g_nm2O[oneName];
 
 		let strClassName = 'csPoseLbl';
@@ -749,10 +742,8 @@ function makeUI(){
 	}
 
 	//ポーズリストを作成する
-//	for(let i in g_idx2O){
-//		let objPose = g_idx2O[i];
 	for(let oneNormalName of normalKeys){
-		let oneName = objNormalizationNameList[oneNormalName];
+		let oneName = g_objNormalizationNameList[oneNormalName];
 		let objPose = g_nm2O[oneName];
 
 
@@ -857,6 +848,11 @@ function makeUI(){
 //		↓
 //	'mirinae: asami 1 animation'
 //	┗'mirinae: asami 1 m animation'
+//
+//パターン③ todo SAPA対応
+//
+//	数値A.数値B.数値Cの場合数値Cはバリエーション扱いする
+//
 function makeVariationSub(argPoseKeyList,argPoseNameList){
 	const isPriorityRegExp = /^(.*)\b((?:P|Priority|V|Version)[ _=\-]*\d)$/i;	//優先度っぽいか
 	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Priority|V|Version)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
@@ -1165,12 +1161,15 @@ function myStartsWith(argTargetString,argBaseString){
 		//差異のある文字数が規定数以下であれば、一致と判断する
 		returnValue = true;
 	}
+	//差異部分の抜き出し
 	let diffString = (argTargetString.slice(argBaseString.length)).trim();
+	//差異部分の先頭の英数字以外を抜き出す
 	diffString = diffString.replace(/^[^a-z0-9]+/i,'');
 	if(diffString.substr(0,1).match(g_allNumericRegExp)){
 		//差異の１文字目が数字であればOK
 		returnValue = true;
 	}
+
 	return returnValue;
 }
 
@@ -1325,7 +1324,9 @@ function groupingByName(){
 	//==============================
 	//同一製作者かどうかは問わない
 	//※todo:この時点で同一製作者単位で処理を行ってもよかったかもしれない。
-	let lastGroupName=null;
+
+	//グループ名候補リストを作成
+	let objGroupNameCandidateList = new Object();
 	let objPosePre = null;
 	for(let oneNormalName of normalKeys){
 		let oneName = g_objNormalizationNameList[oneNormalName];
@@ -1334,78 +1335,83 @@ function groupingByName(){
 		let poseName = objPose.pName;
 
 		//比較用にポーズ名を加工する
-		//let compName = modifyForCompare(poseName);
 		let compName = modifyForCompare(objPose.pNormalizationName);
 
 		if(objPosePre!=null){
-			let poseNamePre = objPosePre.pName;
-			let compNamePre = poseNamePre;
-
 			//比較用にポーズ名を加工する
-			//compNamePre = modifyForCompare(compNamePre);
-			compNamePre = modifyForCompare(objPosePre.pNormalizationName);
+			let compNamePre = modifyForCompare(objPosePre.pNormalizationName);
 
 			let groupName = compareName(compNamePre,compName,false);
 			if(groupName!=null){
-				if((lastGroupName!=null)&&(lastGroupName!=groupName)){
-					//ひとつ前に成立したグループ名と比較して
-					//	以下の関係にあれば、前回のグループにまとめる
-					//		今回のグループ名  ＝ 前回のグループ名＋「追加分」
-					//		かつ、「追加分」の長さが２文字より長いこと
-					if(myStartsWith(compName,lastGroupName)){
-						unionGroupName = lastGroupName;
-						if(unionGroupName==lastGroupName){
-							groupName = lastGroupName;
-						}else {
-							//前のグループ名と比較し、共通する部分がなければ
-							//→別のグループとする
-							groupName = null;
-						}
-					}else{
-						//todo:単語単位の比較を行う
-						//下記のパターンを丸める
-						//	'Bea Pose 1 Breathing'
-						//	'Bea Pose 1M Breathing'
-						//	'Bea Pose 2 Breathing'
-						//	'Bea Pose 2M Breathing'
-						//差異が数字と数字＋Mなどであれば、差異と同一グループとする？
-
-						//console.log('lastGroupName:['+lastGroupName+']compName:['+compName+']groupName:['+groupName+']');
-
-
-						//前に確定したグループと一致しない場合
-						//→別のグループとする
-						groupName = null;
-					}
-				}
-
-				if(groupName != null){
-					let objPoseList = new Object();
-
-					if(!objPosePre.pIsGrouped){
-						objPoseList[poseNamePre] = objPosePre.pName;
-						objPosePre.pIsGrouped = true;
-					}
-					if(!objPose.pIsGrouped){
-						objPoseList[poseName] = objPose.pName;
-						objPose.pIsGrouped = true;
-					}
-
-					if(Object.keys(objPoseList).length>0){
-						//グループに属するファイルが存在する場合のみ処理を行う。
-
-						if(!(groupName in objGroup)){
-							objGroup[groupName] = makeNewGroup(objPoseList);
-						}else{
-							//既存であれば、ファイルリストをコピーする
-							fullNameMove(groupName,null,false,objPoseList);
-						}
-					}
+				groupName = groupName.trimEnd();
+				if(!(groupName in objGroupNameCandidateList)){
+					objGroupNameCandidateList[groupName] = null;
 				}
 			}
-			lastGroupName = groupName;
 		}
 		objPosePre = objPose;
+	}
+
+	//候補を降順に並び替える（基本的に文字列長が長い順に処理したい）
+	let candidateKeys = Object.keys(objGroupNameCandidateList);
+	candidateKeys.sort(compareLowerCaseRev);
+
+	//厳密なグループ化
+	for(let oneCandidate of candidateKeys){
+		for(let oneNormalName of normalKeys){
+			let oneName = g_objNormalizationNameList[oneNormalName];
+			let objPose = g_nm2O[oneName];
+			if(objPose.pIsGrouped){
+				continue;
+			}
+
+			//比較用にポーズ名を加工する
+			let compName = modifyForCompare(objPose.pNormalizationName);
+
+			if(myStartsWith(compName,oneCandidate)){
+				objPose.pIsGrouped = true;
+
+				let objPoseList = new Object();
+				objPoseList[oneName] = objPose.pName;
+
+				//グループに属するファイルが存在する場合のみ処理を行う。
+				if(!(oneCandidate in objGroup)){
+					objGroup[oneCandidate] = makeNewGroup(objPoseList);
+				}else{
+					//既存であれば、ファイルリストをコピーする
+					fullNameMove(oneCandidate,null,false,objPoseList);
+				}
+			}
+		}
+	}
+	//↑↓のループはまとめないこと
+	//単純なグループ化
+	for(let oneCandidate of candidateKeys){
+		for(let oneNormalName of normalKeys){
+			let oneName = g_objNormalizationNameList[oneNormalName];
+			let objPose = g_nm2O[oneName];
+			if(objPose.pIsGrouped){
+				continue;
+			}
+
+			//比較用にポーズ名を加工する
+			let compName = modifyForCompare(objPose.pNormalizationName);
+
+			if(compName.startsWith(oneCandidate)){
+				objPose.pIsGrouped = true;
+
+				let objPoseList = new Object();
+				objPoseList[oneName] = objPose.pName;
+
+				//グループに属するファイルが存在する場合のみ処理を行う。
+				if(!(oneCandidate in objGroup)){
+					objGroup[oneCandidate] = makeNewGroup(objPoseList);
+				}else{
+					//既存であれば、ファイルリストをコピーする
+					fullNameMove(oneCandidate,null,false,objPoseList);
+				}
+			}
+		}
 	}
 
 	//==============================
@@ -1418,9 +1424,11 @@ function groupingByName(){
 			continue;
 		}
 		objPose.pIsGrouped = true;
-
-		let oneGroup = (objGroup[objPose.pName] = makeNewGroup(null));
-		oneGroup.pPoseList[objPose.pName] = objPose.pName;
+		let poseName = objPose.pName;
+		let groupName = objPose.pNormalizationName;
+		console.log('poseName['+poseName+']');
+		let oneGroup = (objGroup[groupName] = makeNewGroup(null));
+		oneGroup.pPoseList[poseName] = poseName;
 	}
 
 	//==============================
@@ -1691,6 +1699,8 @@ function groupingByName(){
 	//・g_groupNamesを作成
 	//・g_nm2OのpGroupInfoに反映
 	//
+	g_groupNames = new Object();
+
 	//大文字・小文字を区別せずソートした順に処理を行う
 	groupKeys = Object.keys(objGroup);
 	groupKeys.sort(compareLowerCase);
@@ -1724,6 +1734,11 @@ function compareLowerCase(a, b) {
 	a = (a.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	b = (b.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	return (a > b) ?  1 :((b > a) ? -1 : 0);
+}
+function compareLowerCaseRev(a, b) {
+	a = (a.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
+	b = (b.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
+	return (a < b) ?  1 :((b < a) ? -1 : 0);
 }
 
 //プログレスバー設定

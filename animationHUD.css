@@ -69,9 +69,10 @@ select {padding: 5px;border-radius: 2.5px;}
 .csGroupLbl2{margin:0 0 0 0.5em;}
 
 .csVarLbl{
-	margin: 0 0.1em;
-	padding: 0.5em 1em;
-	font-size: 1.1em;
+	margin: 0;
+	padding: 0.5em 0.75em;
+	font-size: 1.0em;
+	font-weight: normal;
 	border:0;
 	background-color: var(--mClRowVar);
 	transition: 0.2s;
@@ -119,11 +120,11 @@ select {padding: 5px;border-radius: 2.5px;}
 	}
 .csVarDiv1{
 	padding: 0;
-	margin: 0.2em 0.2em 0.2em 1em;
+	margin: 0.2em 0.2em 0.2em 2.25em;
 	}
 .csVarDiv2{
 	padding: 0;
-	margin: 0.2em 0.2em 0.2em 2em;
+	margin: 0.2em 0.2em 0.2em 2.5em;
 	}
 
 .csVarBtnLbl {
