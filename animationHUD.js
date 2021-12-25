@@ -26,8 +26,9 @@ let g_groupNames = null;
 //==============================
 //load後のオブジェクトの格納
 //==============================
-let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnFlat,g_btnGroup,g_btnVariation;
+let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnTree,g_btnGroup,g_btnVariation,g_selCreator;
 
+let g_scrollHeight;
 //==============================
 //進捗用情報
 //==============================
@@ -37,7 +38,7 @@ let g_debugtId;
 //==============================
 let g_namesPoses;
 let g_namesPosesFlat;
-
+let g_targetNameList;
 //==============================
 //連携用
 //==============================
@@ -48,6 +49,13 @@ let g_jsonData = null
 let g_renkeiTid = null;
 let g_totalCount = 0;
 let g_currentIndex = 0;
+
+//==============================
+//進捗状況表示
+//==============================
+let g_progressBar;
+let g_progressTimerId = null;
+let g_progressValue = 0;;
 
 //==============================
 //システムであらかじめつくった上位グループ
@@ -75,13 +83,8 @@ function timerAction(){
 
 //現在選択されているradioの番号を求める（0～
 function getCursorIndex(){
-	let targetNameList = g_namesPoses;
-	if(g_btnFlat.checked){
-		targetNameList = g_namesPosesFlat;
-	}
-
-	for(let i=0;i<targetNameList.length;++i){
-		if(targetNameList[i].checked){
+	for(let i=0;i<g_targetNameList.length;++i){
+		if(g_targetNameList[i].checked){
 			return i;
 		}
 	}
@@ -93,26 +96,37 @@ function getCursorIndex(){
 //	false			true		ひとつ前
 //	false			false		ひとつ後(引数なしの場合の動作)
 function cursorAction(argIsPrev=false,argIsTopBottom=false){
-	let targetNameList = g_namesPoses;
-	if(g_btnFlat.checked){
-		targetNameList = g_namesPosesFlat;
-	}
-
 	//現在行を取得
 	let curIndex = getCursorIndex();
-	const indexMax = (targetNameList.length - 1);
+	const indexMax = (g_targetNameList.length - 1);
 
 	let objScrollTarget = null;
 
+	//行の表示の有無
 	function isHiddenRow(argCurIndex){
-		let indexNo = targetNameList[argCurIndex].custIndexNo;
+		let indexNo = g_targetNameList[argCurIndex].custIndexNo;
 		let objPose = g_idx2O[indexNo];
-		if(g_btnFlat.checked){
-			objScrollTarget = objPose.pObjFlatScrollTarget;
-		}else{
+		if(g_btnTree.checked){
 			objScrollTarget = objPose.pObjScrollTarget;
+		}else{
+			objScrollTarget = objPose.pObjFlatScrollTarget;
 		}
 		return (objScrollTarget.clientHeight<=0);
+	}
+
+	//スクロール位置調整
+	function myScrollTo(argScrollTarget){
+		let poseList = (g_btnTree.checked)?g_poseTreeList:g_poseFlatList;
+
+		let currentOffsetTop = argScrollTarget.offsetTop - poseList.offsetTop;
+		let isUnder	= (poseList.scrollTop < currentOffsetTop);
+		let isOver	= ((currentOffsetTop + argScrollTarget.clientHeight) < (poseList.scrollTop + g_scrollHeight));
+
+		if(! isUnder){
+			poseList.scrollTop = currentOffsetTop - poseList.clientHeight + argScrollTarget.clientHeight;
+		}else if(! isOver){
+			poseList.scrollTop = currentOffsetTop;
+		}
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -129,7 +143,7 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 	if(isSearchNext){
 		const addVal = (argIsPrev) ? -1:1;
 		//全て非表示の場合もあるので、最大一周までに限定している
-		for(let i=0;i<targetNameList.length;++i){
+		for(let i=0;i<g_targetNameList.length;++i){
 			curIndex += addVal;
 			if(curIndex<0){curIndex = indexMax;
 			}else if(curIndex>indexMax){curIndex = 0;
@@ -139,15 +153,12 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 			}
 		};
 	}
-	if(g_btnFlat.checked){
-		g_poseFlatList.scrollTop = objScrollTarget.offsetTop - g_poseFlatList.offsetTop;
-	}else{
-		g_poseTreeList.scrollTop = objScrollTarget.offsetTop - g_poseTreeList.offsetTop;
-	}
 
-	targetNameList[curIndex].checked = true;
+	myScrollTo(objScrollTarget);
+
+	g_targetNameList[curIndex].checked = true;
 	//アニメショーン情報の送信
-	sendCommand('CTRL',targetNameList[curIndex].custIndexNo);
+	sendCommand('CTRL',g_targetNameList[curIndex].custIndexNo);
 }
 
 //指定のIDのスタイルシートを追加する
@@ -169,6 +180,27 @@ function delStyleSheet(argStyleId){
 	}
 }
 
+function setCreatorList(){
+	//現在行を取得
+	let curIndex = getCursorIndex();
+	if(curIndex<0){
+		return;
+	}
+	let indexNo = g_targetNameList[curIndex].custIndexNo;
+
+	let objPose = g_idx2O[indexNo];
+	let cssTag = objPose.pCreatorInfo.pCssTag;
+
+	let creatorOptions = g_selCreator.options;
+	for(let i=0;i<creatorOptions.length;++i){
+		if(creatorOptions[i].value == cssTag){
+			creatorOptions[i].selected = true;
+			break;
+		}
+	}
+	changeCreator();
+}
+
 function playCtrl(){
 	const styleId = 'cssStopColor'
 	delStyleSheet(styleId);
@@ -183,14 +215,9 @@ function playCtrl(){
 
 	}else{
 		//再開処理
-		let targetNameList = g_namesPoses;
-		if(g_btnFlat.checked){
-			targetNameList = g_namesPosesFlat;
-		}
-
 		let nameIndex = getCursorIndex();
-		if(nameIndex in targetNameList){
-			curIndex = targetNameList[nameIndex].custIndexNo;
+		if(nameIndex in g_targetNameList){
+			curIndex = g_targetNameList[nameIndex].custIndexNo;
 		}
 	}
 	sendCommand('CTRL',curIndex);
@@ -201,32 +228,34 @@ function playCtrl(){
 function changeCreator(){
 	const styleId = 'cssCreator';
 	delStyleSheet(styleId);
-	if(event.target.value == 'all'){return;}
+	if(g_selCreator.value == 'all'){return;}
 
 	let strCss = '';
 	for(let oneUuid in g_uuid2O){
 		let cssTag = g_uuid2O[oneUuid].pCssTag;
-		let displayString = (event.target.value==cssTag) ? 'block' : 'none';
+		let displayString = (g_selCreator.value==cssTag) ? 'block' : 'none';
 		strCss += '.' + cssTag + ' {display: ' + displayString + ';}';
 	}
 
 	addStyleElement(styleId,strCss);
 }
 
-function changeFlat(){
+function changeDisplayMode(){
 	const styleId = 'cssDisplayFlat';
 	delStyleSheet(styleId);
 
-	let targetDisplayTag = 'dPoseTreeList';
-	let targetHiddenTag = 'dPoseFlatList';
-	if(g_btnFlat.checked){
-		targetDisplayTag = 'dPoseFlatList';
-		targetHiddenTag = 'dPoseTreeList';
+	g_targetNameList = g_namesPosesFlat;
+	let targetDisplayTag = 'dPoseFlatList';
+	let targetHiddenTag = 'dPoseTreeList';
+	if(g_btnTree.checked){
+		g_targetNameList = g_namesPoses;
+		targetDisplayTag = 'dPoseTreeList';
+		targetHiddenTag = 'dPoseFlatList';
 	}
 	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
-	g_btnGroup.disabled = g_btnFlat.checked;
-	g_btnVariation.disabled = g_btnFlat.checked;
+	g_btnVariation.disabled = g_btnGroup.disabled = ! g_btnTree.checked;
 
+	g_targetNameList = (g_btnTree.checked)?g_namesPoses:g_namesPosesFlat;
 }
 
 function openCloseWaku(argTragetId=null,argChecked=null) {
@@ -777,7 +806,6 @@ function makeUI(){
 	}
 
 	//リストボックスの追加
-	let objSelect = document.getElementById('selCreatorIdx');
 	let nameList = new Object();
 	for(let oneUuid in g_uuid2O){
 		let objCreator = g_uuid2O[oneUuid];
@@ -789,14 +817,14 @@ function makeUI(){
 	let optAll = document.createElement('option');
 	optAll.text = '---all creators---';
 	optAll.value = 'all';
-	objSelect.appendChild(optAll);
+	g_selCreator.appendChild(optAll);
 
 	for(let oneName of nameKeys){
 		let objCreator = nameList[oneName];
 		let opt = document.createElement('option');
 		opt.text = objCreator.pName;
 		opt.value = objCreator.pCssTag;
-		objSelect.appendChild(opt);
+		g_selCreator.appendChild(opt);
 	}
 
 	g_namesPoses = document.getElementsByName('namesPoseList');
@@ -805,14 +833,18 @@ function makeUI(){
 	//チェック状態に応じて初期状態にする
 	openCloseWaku('btnGroup',false);
 	openCloseWaku('btnVariation',false);
-	changeFlat();
+	changeDisplayMode();
 
-	addStyleElement('cssDisplayMain','#csMain{display:block;}#csProgress{display:none;}');
+//	addStyleElement('cssDisplayMain','#csMain{display:block;}#csProgress{display:none;}');
+	addStyleElement('cssDisplayMain','#idMessage{display:none;}');
 
 	//画面のリサイズはかからない前提
-	let divHeight = (document.documentElement.clientHeight - g_poseTreeList.offsetTop) + 'px';
+	g_scrollHeight = document.documentElement.clientHeight - g_poseTreeList.offsetTop;
+	let divHeight = g_scrollHeight + 'px';
 	g_poseTreeList.style.height = divHeight;
 	g_poseFlatList.style.height = divHeight;
+
+	clearInterval(g_progressTimerId);
 }
 
 //==============================
@@ -840,7 +872,7 @@ function makeUI(){
 //	'mirinae: asami 1 animation'
 //	┗'mirinae: asami 1 m animation'
 //
-//パターン③ todo SAPA対応
+//パターン③ SAPA対応
 //
 //	数値A.数値B.数値Cの場合数値Cはバリエーション扱いする
 //
@@ -1041,18 +1073,32 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 					setVariarion(objPose,diffstr,objPoseBase);
 				}
 			}else {
+				//SAPA対応
+				if((poseNameBase.match(/^\d+\.\d+\.\d+/))&&(poseNameTarget.match(/^\d+\.\d+\.\d+/))){
+					if(!objPoseBase.pIsVariation){
+						//SAPAチェックの場合、一度バリエーションとなった場合は再チェックしない
+						let sameBase	= poseNameBase.replace(/^(\d+\.\d+)(\..*)$/,'$1');
+						let sameTarget	= poseNameTarget.replace(/^(\d+\.\d+)(\..*)$/,'$1');
+						if(sameBase==sameTarget){
+							let diffstr = poseNameTarget.replace(/^(\d+\.\d+\.)(.*)$/,'$2');
+							setVariarion(objPose,diffstr,objPoseBase);
+							continue;
+						}
+					}
+				}
+
 				let isPriority = false;
 
 				for(let i in regExpArray){
-					let regExpPettern = regExpArray[i];
-					if(poseNameBase.match(regExpPettern) && poseNameTarget.match(regExpPettern)){
+					let regExpPattern = regExpArray[i];
+					if(poseNameBase.match(regExpPattern) && poseNameTarget.match(regExpPattern)){
 						//優先度っぽい感じなら
 						//優先度文字列を抜くと一致するかチェック
-						let substredBase  = poseNameBase.replace(regExpPettern,'$1');
-						let substredTarget= poseNameTarget.replace(regExpPettern,'$1');
+						let substredBase  = poseNameBase.replace(regExpPattern,'$1');
+						let substredTarget= poseNameTarget.replace(regExpPattern,'$1');
 						if(substredBase == substredTarget){
-							let priorityBase  = poseNameBase.replace(regExpPettern,'$2');
-							let priorityTarget= poseNameTarget.replace(regExpPettern,'$2');
+							let priorityBase  = poseNameBase.replace(regExpPattern,'$2');
+							let priorityTarget= poseNameTarget.replace(regExpPattern,'$2');
 							if(priorityBase<priorityTarget){
 								//console.log('Priority:['+priorityBase+']['+poseNameBase+']['+priorityTarget+']['+poseNameTarget+']');
 								setVariarion(objPose,priorityTarget,objPoseBase);
@@ -1417,7 +1463,7 @@ function groupingByName(){
 		objPose.pIsGrouped = true;
 		let poseName = objPose.pName;
 		let groupName = objPose.pNormalizationName;
-		console.log('poseName['+poseName+']');
+		//console.log('poseName['+poseName+']');
 		let oneGroup = (objGroup[groupName] = makeNewGroup(null));
 		oneGroup.pPoseList[poseName] = poseName;
 	}
@@ -1734,20 +1780,29 @@ function compareLowerCaseRev(a, b) {
 
 //プログレスバー設定
 function updateProgress(argTotalCounter=null){
-	if(argTotalCounter!=null){
-		updateProgress.objBar = document.getElementById('progBar');
-		updateProgress.objBar.max = argTotalCounter;
-		updateProgress.objBar.value = 0;
-
-		updateProgress.counter = 0;
-		return;
+	function updateProgressValue(){
+		g_progressBar.value = g_progressValue;
+		console.log(g_progressBar.value);
 	}
-	++updateProgress.counter;
-	updateProgress.objBar.value = updateProgress.counter;
+	if(argTotalCounter!=null){
+		g_progressBar.max = argTotalCounter;
+		g_progressBar.value = 0;
+
+		g_progressValue = 0;
+
+		g_progressTimerId = setInterval(updateProgressValue,100);
+		console.log('g_progressTimerId:'+g_progressTimerId);
+	}else{
+		++g_progressValue;
+		//console.log(g_progressBar.value);
+	}
 }
 
+
+
+
 function makeBaseHtml(){
-	function addElementDiv(argAppendObject,argId=null,argClassName=null){
+	function addElmDiv(argAppendObject,argId=null,argClassName=null){
 		let objElement = document.createElement('div');
 		if(argId != null){
 			objElement.id = argId;
@@ -1762,7 +1817,7 @@ function makeBaseHtml(){
 		return objElement;
 	}
 
-	function addElementSelect(argAppendObject,argId,argOnChange){
+	function addElmSelect(argAppendObject,argId,argOnChange){
 		let objElement = document.createElement('select');
 		objElement.id = argId;
 		objElement.onchange = argOnChange;
@@ -1770,7 +1825,7 @@ function makeBaseHtml(){
 		return argAppendObject.appendChild(objElement);
 	}
 
-	function addElementButton(argAppendObject,argId,argClassName,argValue,argOnClick,argDoLineFeed){
+	function addElmButton(argAppendObject,argId,argClassName,argValue,argOnClick,argDoLineFeed=false){
 		let objElement = document.createElement('input');
 		objElement.type = 'button';
 		if(argId != null){
@@ -1788,7 +1843,7 @@ function makeBaseHtml(){
 		}
 	}
 
-	function addElementCheckAndLabel(argAppendObject,argId,argCheckClassName,argLabelClassName,argChecked,argLabelText,argOnClick){
+	function addElmCheckLabel(argAppendObject,argId,argCheckClassName,argLabelClassName,argChecked,argLabelText,argOnClick){
 		let objCheckBox = document.createElement('input');
 		objCheckBox.type = 'checkbox';
 		objCheckBox.id = argId;
@@ -1808,26 +1863,49 @@ function makeBaseHtml(){
 		return objCheckBox;
 	}
 
-	let objMain = addElementDiv(null,'csMain');
-	let objCtrl = addElementDiv(objMain,'csCtrl');
+	function addElmFieldset(argAppendObject,argId,argCheckClassName,argLabelClassName,argLabelText,argObjLabel){
+		let objFieldset = document.createElement('fieldset');
+		if(argId!=null){
+			objFieldset.id = argId;
+		}
+		if(argCheckClassName!=null){
+			objFieldset.className = argCheckClassName;
+		}
+
+		let objLegend = document.createElement('legend');
+		if(argLabelClassName!=null){
+			objLegend.className = argLabelClassName;
+		}
+		if(argLabelText!=null){
+			objLegend.innerHTML = argLabelText.replace(' ','&nbsp;');
+		}
+		if(argObjLabel!=null){
+			objLegend.appendChild(argObjLabel);
+		}
+
+		argAppendObject.appendChild(objFieldset);
+		objFieldset.appendChild(objLegend);
+		return objFieldset;
+	}
+
+	let objMain = addElmDiv(null,'csMain');
+	let objCtrl = addElmDiv(objMain,'idCtrl');
 
 	//==============================
 	//絞り込み・タイマー
 	//==============================
-	let objCtrl01 = addElementDiv(objCtrl,null,'csNoWaku1');
-	let objCtrl01Sub01 = addElementDiv(objCtrl01,null,'csWaku');
+	let elmCtrlLeft = addElmDiv(objCtrl,null,'csNoWaku1');
+	let elmWakuCreator = addElmFieldset(elmCtrlLeft,'idWakuCreator','csWaku',null,'creator',null);
 
-	addElementSelect(objCtrl01Sub01,'selCreatorIdx',function(){changeCreator();});
-	objCtrl01Sub01.appendChild(document.createElement('br'));
-	g_btnFlat = addElementCheckAndLabel(objCtrl01Sub01,'btnFlat',null,'displayLabel csCmnLbl',false,'flat mode',function(){changeFlat()});
-	g_btnGroup = addElementCheckAndLabel(objCtrl01Sub01,'btnGroup',null,'groupLabel csCmnLbl',false,'group',function(){openCloseWaku();});
-	g_btnVariation = addElementCheckAndLabel(objCtrl01Sub01,'btnVariation',null,'variationLabel csCmnLbl',false,'variations',function(){openCloseWaku();});
+	//製作者関係
+	g_selCreator = addElmSelect(elmWakuCreator,'selCreatorIdx',function(){changeCreator();});
+	addElmButton(elmWakuCreator,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();},true);
 
-
-	let objCtrl01Sub02 = addElementDiv(objCtrl01,null,'csWaku');
-
-	g_btnTimer = addElementCheckAndLabel(objCtrl01Sub02,'timerOn',null,'csTimerLbl csCmnLbl',false,'timer',function(){timerAction();});
-	g_selTimer = addElementSelect(objCtrl01Sub02,'selTimer',function(){timerAction();});
+	//移動関係
+	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
+	let elmWakuTimer = addElmFieldset(elmWakuCursor,null,'csTimerIn',null,null);
+	g_btnTimer = addElmCheckLabel(elmWakuTimer,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
+	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
 
 	//timerの間隔設定
 	const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
@@ -1838,44 +1916,51 @@ function makeBaseHtml(){
 		});
 	g_selTimer.selectedIndex = 0;
 
-	//==============================
-	//カーソル
-	//==============================
-	let objCtrl02 = addElementDiv(objCtrl,null,'csNoWaku2');
-	addElementButton(objCtrl02,null,null,'⤒',function(){cursorAction(true,true);},true);
-	addElementButton(objCtrl02,null,null,'↑',function(){cursorAction(true,false);},true);
-	addElementButton(objCtrl02,null,null,'↓',function(){cursorAction(false,false);},true);
-	addElementButton(objCtrl02,null,null,'⤓',function(){cursorAction(false,true);},false);
+	let elmWakuCursorBtns = addElmFieldset(elmWakuCursor,null,'csCursorIn',null,null);
+	addElmButton(elmWakuCursorBtns,null,'csActBtn','TOP',function(){cursorAction(true,true);});
+	addElmButton(elmWakuCursorBtns,null,'csActBtn','PREV',function(){cursorAction(true,false);});
+	addElmButton(elmWakuCursorBtns,null,'csActBtn','NEXT',function(){cursorAction(false,false);});
+	addElmButton(elmWakuCursorBtns,null,'csActBtn','BOTTOM',function(){cursorAction(false,true);});
 
 	//==============================
 	//HUDのコントロール
 	//==============================
-	let objCtrl03 = addElementDiv(objCtrl,null,'csNoWaku3');
+	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWaku3');
 
-	addElementButton(objCtrl03,null,'csActBtn csMiniBtn','MINI',function(){sendCommand('MINI');},true);
-	addElementButton(objCtrl03,null,'csActBtn csDetachBtn','DETACH',function(){sendCommand('DETACH');},true);
+	let elmWakuCtrlHUD = addElmFieldset(elmCtrlRight,null,'csCtrl',null,null);
+	//再生ボタン
+	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
+	let elmWakuCtrlHUD2 = addElmFieldset(elmWakuCtrlHUD,null,'csCtrlIn',null,null);
+	//HUD制御
+	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
+	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csDetachBtn','X',function(){sendCommand('DETACH');});
 
-	g_btnPlay = addElementCheckAndLabel(objCtrl03,'playBtn','csActBtn','csPlayLbl csCmnLbl',true,'PLAY',function(){playCtrl();});
+
+	let objDummySpan = document.createElement('span');
+	g_btnTree		= addElmCheckLabel(objDummySpan,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,'tree',function(){changeDisplayMode()});
+
+	let elmWakuDisplay = addElmFieldset(elmCtrlRight,null,'csWaku',null,null,objDummySpan);
+	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
+	elmWakuDisplay.appendChild(document.createElement('br'));
+	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variations',function(){openCloseWaku();});
+
+	//プログレスバー
+	let elmWakuProgress = addElmFieldset(elmCtrlRight,'idMessage','csWaku',null,null,null);
+	g_progressBar = document.createElement('progress');
+	g_progressBar.id = 'progBar';
+	g_progressBar.value = 0;
+	g_progressBar.max = 100;
+	elmWakuProgress.appendChild(g_progressBar);
+
 
 	//==============================
 	//ポーズリスト
 	//==============================
-	g_poseTreeList = addElementDiv(objMain,'dPoseTreeList');
-	g_poseFlatList = addElementDiv(objMain,'dPoseFlatList');
-
-	//==============================
-	//プログレスバー
-	//==============================
-	let objProgressWaku = addElementDiv(null,'csProgress');
-	let objProgress = document.createElement('progBar');
-	objProgress.id = 'progBar';
-	objProgress.value = 0;
-	objProgress.max = 100;
-	objProgressWaku.appendChild(objProgress);
+	g_poseTreeList = addElmDiv(objMain,'dPoseTreeList');
+	g_poseFlatList = addElmDiv(objMain,'dPoseFlatList');
 
 	let docBody = document.body;
 	docBody.appendChild(objMain);
-	docBody.appendChild(objProgressWaku);
 }
 
 $(document).ready(function() {
