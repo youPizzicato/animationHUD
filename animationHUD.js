@@ -1960,7 +1960,6 @@ function makeBaseHtml(){
 	g_selTimer.selectedIndex = 0;
 
 	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
-	//let elmWakuCursorBtns = addElmFieldset(elmWakuCursor,null,'csCursorIn',null,null);
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','TOP',function(){cursorAction(true,true);});
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','PREV',function(){cursorAction(true,false);});
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','NEXT',function(){cursorAction(false,false);});
@@ -1971,7 +1970,7 @@ function makeBaseHtml(){
 	//==============================
 	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWakuRight');
 
-	let elmWakuCtrlHUD = addElmFieldset(elmCtrlRight,'idCtrlRight','csCtrl',null,null);
+	let elmWakuCtrlHUD = addElmDiv(elmCtrlRight,'idCtrlRight','csCtrl');
 	//再生ボタン
 	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,null,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
 	let elmWakuCtrlHUD2 = addElmFieldset(elmWakuCtrlHUD,null,'csCtrlIn',null,null);
@@ -1999,7 +1998,7 @@ function makeBaseHtml(){
 	elmWakuDisplayFlat.appendChild(g_searchText);
 
 	//プログレスバー
-	let elmWakuProgress = addElmFieldset(elmCtrlRight,'idMessage','csWaku',null,null,null);
+	let elmWakuProgress = addElmDiv(elmCtrlRight,'idMessage','csWaku');
 	g_progressBar = document.createElement('progress');
 	g_progressBar.id = 'progBar';
 	g_progressBar.value = 0;

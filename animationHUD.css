@@ -181,6 +181,7 @@ select {
 	margin: 2px;
 	padding: 0px;
 	width:65%;
+	float:left;
 	}
 #selCreatorIdx{
 	margin: -10px 10px 5px 10px;
@@ -210,6 +211,7 @@ select {
 	margin:0 2px;
 	padding: 0px 0px 5px 5px;
 	width:35%;
+	float:right;
   	}
 
 .csWaku{
@@ -236,9 +238,10 @@ fieldset.csCtrl{
 	}
 
 .csCtrl{
-	border:0;
-	display:flex;
-	justify-content:right;
+	border: 0;
+	display: inline-flex;
+	justify-content: right;
+	flex-wrap: nowrap;
 	}
 .csCtrlIn{
 	border:0;
