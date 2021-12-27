@@ -36,7 +36,7 @@ input[type=checkbox].csGroupChk,input[type=checkbox].csVarBtn,input[type=checkbo
 select {
 	padding: 5px;
 	border-radius: 2.5px;
-	font-size:1.0em;
+	font-size:1.2em;
 	}
 
 #dPoseTreeList,#dPoseFlatList {
@@ -50,7 +50,6 @@ select {
 
 .csCmnLbl{
 	display: inline-flex;
-/*	font-weight: bold;*/
 	align-items: center;
 	margin: 0 auto;
 	padding: 0.5em 0em 0.5em 1em;
@@ -58,7 +57,6 @@ select {
 	}
 .csBtnCmnLbl{
 	display: inline-block;
-	/*padding:0.2em 0.5em;*/
 	padding:5px 5px;
 	font-weight: bold;
 	font-size:1.2em;
@@ -86,8 +84,6 @@ select {
 	transition: 0.2s;
 }
 .displayLabel{
-/*	font-weight: normal;*/
-/*	font-size: 1.0em;*/
 }
 
 #btnGroup[disabled] + .groupLabel
@@ -95,11 +91,12 @@ select {
 ,#timerOn[disabled] + .csTimerLbl
 ,#playBtn[disabled] + .csPlayLbl
 ,#btnTree[disabled] + .displayLabel
-,#btnFlat[disabled] + .displayLabel{
+,#btnFlat[disabled] + .displayFlatLabel
+,#btnSay[disabled] + .sayLabel{
 	color: var(--mClDisabled);
 }
 #btnGroup,#btnVariation,#timerOn{
-	margin: 0 0 0 1em;
+	margin: 0 0 0 0.2em;
 	padding: 0;
 }
 
@@ -136,7 +133,7 @@ select {
 	}
 
 .csActBtn {
-	padding: 5px 10px;
+	padding: 2.5px 10px;
 	font-weight: bold;
 	border-radius: 5px;
 	font-size: 1.1em;
@@ -181,7 +178,7 @@ select {
 .csNoWakuLeft{
 	margin: 2px;
 	padding: 0px;
-	width:65%;
+	width:60%;
 	float:left;
 	}
 #selCreatorIdx{
@@ -200,7 +197,6 @@ select {
 	justify-content: flex-end;
 	}
 #searchText{
-	display: flex;
 	margin: -10px 0 0 0;
 	border-radius: 2.5px;
 	font-size:1.1em;
@@ -211,7 +207,7 @@ select {
 .csNoWakuRight{
 	margin:0 2px;
 	padding: 0px 0px 5px 5px;
-	width:35%;
+	width:40%;
 	float:right;
   	}
 
@@ -228,14 +224,16 @@ fieldset.csCtrl{
 	}
 
 #idWakuCreator{
-	text-align: right;
 	padding: 10px;
 	}
+#idWakuCreatorIn{
+	text-align: right;
+	border:0;
+	margin:0;
+	padding:0;
+	}
 #idWakuCursor{
-	display: flex;
-	flex-direction: row;
 	flex-wrap: wrap;
-	justify-content: flex-end;
 	}
 
 .csCtrl{
@@ -257,6 +255,7 @@ fieldset.csCtrl{
 .csTimerIn{
 	border: 0;
 	margin: -10px 0 0 0;
+	text-align: right;
 	}
 #idMessage{
 	border:0;

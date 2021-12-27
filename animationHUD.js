@@ -29,6 +29,7 @@ let g_groupNames = null;
 //==============================
 let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnGroup,g_btnVariation,g_selCreator;
 let g_btnTree;
+let g_btnSay;
 let g_searchText;
 let g_objMain;
 let g_scrollHeight;
@@ -395,6 +396,14 @@ function testA(){
 		groupingByName();
 		//画面を作成する
 		makeUI();
+	}
+}
+
+function changeSayMode(){
+	if(g_btnSay.checked){
+		sendCommand('SAY');
+	}else{
+		sendCommand('NOSAY');
 	}
 }
 
@@ -1937,12 +1946,13 @@ function makeBaseHtml(){
 	let elmWakuCreator = addElmFieldset(elmCtrlLeft,'idWakuCreator','csWaku',null,'creator',null);
 
 	//製作者関係
-	g_selCreator = addElmSelect(elmWakuCreator,'selCreatorIdx',function(){changeCreator();});
+	let elmWakuCreatorIn = addElmDiv(elmWakuCreator,'idWakuCreatorIn','csWaku');
+	g_selCreator = addElmSelect(elmWakuCreatorIn,'selCreatorIdx',function(){changeCreator();});
 	let optAll = document.createElement('option');
 	optAll.text = '---all creators---';
 	optAll.value = 'all';
 	g_selCreator.appendChild(optAll);
-	addElmButton(elmWakuCreator,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();},true);
+	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();},true);
 
 	//移動関係
 	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
@@ -1973,22 +1983,25 @@ function makeBaseHtml(){
 	let elmWakuCtrlHUD = addElmDiv(elmCtrlRight,'idCtrlRight','csCtrl');
 	//再生ボタン
 	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,null,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
-	let elmWakuCtrlHUD2 = addElmFieldset(elmWakuCtrlHUD,null,'csCtrlIn',null,null);
+	let elmWakuCtrlHUD2 = addElmDiv(elmWakuCtrlHUD,null,'csCtrlIn');
+
 	//HUD制御
 	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
-	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csDetachBtn','X',function(){sendCommand('DETACH');});
+	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csDetachBtn','X',function(){sendCommand('DETACH');},true);
+
+	g_btnSay = addElmCheckLabel(elmWakuCtrlHUD2,null,'btnSay',null,'csBtnCmnLbl sayLabel'	,false,'Say',function(){changeSayMode()});
 
 	let objDummySpan = document.createElement('span');
 	g_btnTree		= addElmCheckLabel(objDummySpan,'nmDisplay','btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,'tree',function(){changeDisplayMode()});
 
 	let elmWakuDisplay = addElmFieldset(elmCtrlRight,'idTreeCtrl','csWaku',null,null,objDummySpan);
 	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
-	elmWakuDisplay.appendChild(document.createElement('br'));
-	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variations',function(){openCloseWaku();});
+	//elmWakuDisplay.appendChild(document.createElement('br'));
+	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variation',function(){openCloseWaku();});
 
 
 	let objFlatSpan = document.createElement('span');
-	addElmCheckLabel(objFlatSpan,'nmDisplay','btnFlat'		,null,'csBtnCmnLbl displayLabel'	,false,'flat',function(){changeDisplayMode()});
+	addElmCheckLabel(objFlatSpan,'nmDisplay','btnFlat'		,null,'csBtnCmnLbl displayFlatLabel'	,false,'flat',function(){changeDisplayMode()});
 	let elmWakuDisplayFlat = addElmFieldset(elmCtrlRight,'idFlatCtrl','csWaku',null,null,objFlatSpan);
 
 	g_searchText = document.createElement('input');
@@ -2047,12 +2060,18 @@ function setFieldset(argDisabled){
 	document.getElementById('idCtrlRight').disabled = argDisabled;
 	document.getElementById('idTreeCtrl').disabled = argDisabled;
 
-	document.getElementById('timerOn').disabled = argDisabled;
-	document.getElementById('playBtn').disabled = argDisabled;
-	document.getElementById('btnTree').disabled = argDisabled;
 
-	document.getElementById('btnGroup').disabled = argDisabled;
-	document.getElementById('btnVariation').disabled = argDisabled;
+	document.getElementById('btnFlat').disabled = argDisabled;
+
+	g_btnTimer.disabled = argDisabled;
+	g_btnPlay.disabled = argDisabled;
+	g_btnTree.disabled = argDisabled;
+
+	g_searchText.disabled = argDisabled;
+
+	g_btnGroup.disabled = argDisabled;
+	g_btnVariation.disabled = argDisabled;
+	g_btnSay.disabled = argDisabled;
 }
 
 $(document).ready(function() {
