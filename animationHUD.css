@@ -188,7 +188,7 @@ select {
 	margin: 0px 10px 5px 10px;
 	}
 
-.groupLabel{
+.groupLabel,.variationLabel{
 	margin: -10px 0 0 0;
 }
 #idFlatCtrl{
