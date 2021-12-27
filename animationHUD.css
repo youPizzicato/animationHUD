@@ -239,8 +239,7 @@ fieldset.csCtrl{
 
 .csCtrl{
 	border: 0;
-	display: inline-flex;
-	justify-content: right;
+	display: flex;
 	flex-wrap: nowrap;
 	}
 .csCtrlIn{
@@ -259,12 +258,13 @@ fieldset.csCtrl{
 	margin: -10px 0 0 0;
 	}
 #idMessage{
-    display: inline-block;
-    text-align: right;
 	border:0;
+	padding: 30px 15px;
+	width:90%;
+	}
+#progBar{
 	width:100%;
 	}
-
 #selCreatorIdx > option:first-child{
 	background:#ffd700;
 	color:red;

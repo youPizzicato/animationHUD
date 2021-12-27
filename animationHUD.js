@@ -1998,7 +1998,9 @@ function makeBaseHtml(){
 	elmWakuDisplayFlat.appendChild(g_searchText);
 
 	//プログレスバー
-	let elmWakuProgress = addElmDiv(elmCtrlRight,'idMessage','csWaku');
+
+	//let elmWakuProgress = addElmDiv(elmCtrlRight,'idMessage','csWaku');
+	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
 	g_progressBar = document.createElement('progress');
 	g_progressBar.id = 'progBar';
 	g_progressBar.value = 0;
