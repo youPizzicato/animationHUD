@@ -62,7 +62,7 @@ let g_progressValue = 0;;
 //==============================
 //	システムグループ名:システムグループに属するグループの情報が１つ(※)入っている
 //	※上位グループの情報を参照するだけなので、複数あっても同じなので１つだけでいい。
-//	※万が一、従来ロジックで作られたグループ名と重複しないように"|"を含む名前にしている
+//	※万が一、従来ロジックで作られたグループ名と重複しないように'|'を含む名前にしている
 let g_systemGroupList = new Object();
 const g_numericGroupName = '#number |* system group *|';	//数値グループの上位
 g_systemGroupList[g_numericGroupName] = null;
@@ -433,6 +433,9 @@ function sendCommand(argAction,argIndexNo){
 	).done(
 		function(data) {
 			//何もしない
+			if((data=='SAY')||(data=='NOSAY')){
+				g_btnSay.checked = (data=='SAY');
+			}
 		}
 	).fail(
 		function(data) {
@@ -902,6 +905,8 @@ function makeUI(){
 	changeDisplayMode();
 
 	clearInterval(g_progressTimerId);
+
+	changeSayMode();
 }
 
 //==============================
