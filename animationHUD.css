@@ -94,7 +94,8 @@ select {
 ,#btnVariation[disabled] + .variationLabel
 ,#timerOn[disabled] + .csTimerLbl
 ,#playBtn[disabled] + .csPlayLbl
-,#btnTree[disabled] + .displayLabel{
+,#btnTree[disabled] + .displayLabel
+,#btnFlat[disabled] + .displayLabel{
 	color: var(--mClDisabled);
 }
 #btnGroup,#btnVariation,#timerOn{

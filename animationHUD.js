@@ -1999,7 +1999,6 @@ function makeBaseHtml(){
 
 	//プログレスバー
 
-	//let elmWakuProgress = addElmDiv(elmCtrlRight,'idMessage','csWaku');
 	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
 	g_progressBar = document.createElement('progress');
 	g_progressBar.id = 'progBar';
