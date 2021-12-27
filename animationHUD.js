@@ -1946,7 +1946,7 @@ function makeBaseHtml(){
 
 	//移動関係
 	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
-	let elmWakuTimer = addElmFieldset(elmWakuCursor,null,'csTimerIn',null,null);
+	let elmWakuTimer = addElmDiv(elmWakuCursor,null,'csTimerIn');
 	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
 	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
 
@@ -1959,7 +1959,8 @@ function makeBaseHtml(){
 		});
 	g_selTimer.selectedIndex = 0;
 
-	let elmWakuCursorBtns = addElmFieldset(elmWakuCursor,null,'csCursorIn',null,null);
+	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
+	//let elmWakuCursorBtns = addElmFieldset(elmWakuCursor,null,'csCursorIn',null,null);
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','TOP',function(){cursorAction(true,true);});
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','PREV',function(){cursorAction(true,false);});
 	addElmButton(elmWakuCursorBtns,null,'csActBtn','NEXT',function(){cursorAction(false,false);});

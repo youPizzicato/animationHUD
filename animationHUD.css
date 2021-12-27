@@ -65,7 +65,7 @@ select {
 	}
 .csGroupCmnLbl{
 	display: flex;
-	font-size: 1.1em;
+	font-size: 1.2em;
 	color:white;
 }
 .csGroupLbl1,.csGroupLbl2{background-color: var(--mClGroupClose);}
@@ -79,7 +79,7 @@ select {
 	display: flex;
 	justify-content: space-between;
 	padding: 0.6em 0.3em 0.6em 1em;
-	font-size: 1.0em;
+	font-size: 1.2em;
 	font-weight: bold;
 	border:0;
 	background-color: var(--mClRowAnim);
@@ -111,7 +111,7 @@ select {
 .csVarLbl{
 	margin: 0;
 	padding: 0.5em 0.75em;
-	font-size: 1.0em;
+	font-size: 1.1em;
 	font-weight: bold;
 	border:0;
 	background-color: var(--mClRowVar);
@@ -196,7 +196,6 @@ select {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: flex-end;
-	margin:0;
 	}
 #searchText{
 	display: flex;
@@ -204,6 +203,7 @@ select {
 	border-radius: 2.5px;
 	font-size:1.1em;
 	padding: 0 0 0 0.5em;
+	width: 80%;
 	}
 
 .csNoWakuRight{
@@ -225,10 +225,8 @@ fieldset.csCtrl{
 	}
 
 #idWakuCreator{
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-end;
-	padding:10px;
+	text-align: right;
+	padding: 10px;
 	}
 #idWakuCursor{
 	display: flex;
@@ -241,28 +239,25 @@ fieldset.csCtrl{
 	border:0;
 	display:flex;
 	justify-content:right;
-	margin:0;
-	padding:0;
 	}
 .csCtrlIn{
 	border:0;
 	margin:0 0 0 0.5em;
-	padding:0;
 	}
 .csCursorIn{
 	display: flex;
-	justify-content:center;
-	border:0;
-	margin:0;
-	padding:0;
-	width:100%;
+	justify-content: space-evenly;
+	border: 0;
+	width: 100%;
+	flex-wrap: nowrap;
 	}
 .csTimerIn{
-	border:0;
-	margin:-10px 0 0 0;
-	padding:0;
+	border: 0;
+	margin: -10px 0 0 0;
 	}
 #idMessage{
+    display: inline-block;
+    text-align: right;
 	border:0;
 	width:100%;
 	}
