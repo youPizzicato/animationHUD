@@ -1991,8 +1991,8 @@ function makeBaseHtml(){
 	let elmWakuCtrlHUD2 = addElmDiv(elmWakuCtrlHUD,null,'csCtrlIn');
 
 	//HUD制御
-	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
-	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csDetachBtn','X',function(){sendCommand('DETACH');},true);
+	addElmButton(elmWakuCtrlHUD2,'idHudMini','csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
+	addElmButton(elmWakuCtrlHUD2,'idHudDetach','csActBtn csDetachBtn','X',function(){sendCommand('DETACH');},true);
 
 	g_btnSay = addElmCheckLabel(elmWakuCtrlHUD2,null,'btnSay',null,'csBtnCmnLbl sayLabel'	,false,'Say',function(){changeSayMode()});
 
@@ -2065,8 +2065,9 @@ function setFieldset(argDisabled){
 	document.getElementById('idCtrlRight').disabled = argDisabled;
 	document.getElementById('idTreeCtrl').disabled = argDisabled;
 
-
 	document.getElementById('btnFlat').disabled = argDisabled;
+	document.getElementById('idHudMini').disabled = argDisabled;
+	document.getElementById('idHudDetach').disabled = argDisabled;
 
 	g_btnTimer.disabled = argDisabled;
 	g_btnPlay.disabled = argDisabled;
