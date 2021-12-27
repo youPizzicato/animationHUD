@@ -1,4 +1,4 @@
-//==============================
+4//==============================
 //正規表現パターン
 //==============================
 //数字と判断する
@@ -12,6 +12,7 @@ const g_sameLimitLength = 2;
 let g_idx2O = new Array();	//index(0～) -> object
 let g_nm2O = new Object();	//ポーズ名 -> object
 
+//正規化した名前→素の名前の変換配列
 let g_objNormalizationNameList = null;
 //==============================
 //クリエーター名を指すcss class Id
@@ -26,13 +27,11 @@ let g_groupNames = null;
 //==============================
 //load後のオブジェクトの格納
 //==============================
-let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnTree,g_btnGroup,g_btnVariation,g_selCreator;
-
+let g_objHead,g_poseTreeList,g_poseFlatList,g_selTimer,g_btnPlay,g_btnTimer,g_btnGroup,g_btnVariation,g_selCreator;
+let g_btnTree;
+let g_searchText;
+let g_objMain;
 let g_scrollHeight;
-//==============================
-//進捗用情報
-//==============================
-let g_debugtId;
 //==============================
 //要素作成後のオブジェクトの格納
 //==============================
@@ -62,10 +61,10 @@ let g_progressValue = 0;;
 //==============================
 //	システムグループ名:システムグループに属するグループの情報が１つ(※)入っている
 //	※上位グループの情報を参照するだけなので、複数あっても同じなので１つだけでいい。
+//	※万が一、従来ロジックで作られたグループ名と重複しないように"|"を含む名前にしている
 let g_systemGroupList = new Object();
-const g_numericGroupName = '#number |system group|';	//数値グループの上位
+const g_numericGroupName = '#number |* system group *|';	//数値グループの上位
 g_systemGroupList[g_numericGroupName] = null;
-
 
 //自動順送り
 function timerAction(){
@@ -107,9 +106,9 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 		let indexNo = g_targetNameList[argCurIndex].custIndexNo;
 		let objPose = g_idx2O[indexNo];
 		if(g_btnTree.checked){
-			objScrollTarget = objPose.pObjScrollTarget;
+			objScrollTarget = objPose.pElmScrollTarget;
 		}else{
-			objScrollTarget = objPose.pObjFlatScrollTarget;
+			objScrollTarget = objPose.pElmFlatScrollTarget;
 		}
 		return (objScrollTarget.clientHeight<=0);
 	}
@@ -254,6 +253,7 @@ function changeDisplayMode(){
 	}
 	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
 	g_btnVariation.disabled = g_btnGroup.disabled = ! g_btnTree.checked;
+	g_searchText.disabled = g_btnTree.checked;
 
 	g_targetNameList = (g_btnTree.checked)?g_namesPoses:g_namesPosesFlat;
 }
@@ -454,6 +454,42 @@ function makePoseInfo(argJsonData){
 		return addPoseCount;
 	}
 
+	//名前の正規化
+	//
+	function normalizationName(argPoseName){
+		let normalName = argPoseName.trim();
+
+		//区切り文字の前後の空白を削除する
+		normalName = normalName.replace(/[ ]*(\W)[ ]*/g,'$1');
+
+		//連続した空白をまとめる
+		normalName = normalName.replace(/[ ][ ]*/g,' ');
+
+		//番号から始まっていたら
+		//※以下のパターンへの対応
+		//	'1. OG. Alone'
+		//	'1. M OG. Alone'
+		const sapaPattern = /^\d+(\.\d+|#\d+)/;
+		if(!normalName.match(sapaPattern)){
+			const seqCheck01 = /^((?:#|No)?\d+[\.]?)(.*)$/i;
+			if(normalName.match(seqCheck01)){
+				let partNumber = normalName.replace(seqCheck01,'$1');
+				let partName = normalName.replace(seqCheck01,'$2');
+				const seqCheck02 = /^(M)[ ]+(.*)$/i;
+				if(partName.match(seqCheck02)){
+					let partVariation = partName.replace(seqCheck02,'$1');
+					partName = partName.replace(seqCheck02,'$2');
+
+					normalName = partName + ' ' + partNumber + ' ' + partVariation;
+				}else{
+					normalName = partName + ' ' + partNumber;
+				}
+			}
+		}
+
+		return normalName;
+	}
+
 	//animation情報格納用のオブジェクト作成
 	function makeObjPose(argIndexNo,argPoseName,argCreatorUuid) {
 		//製作者情報の作成
@@ -472,17 +508,15 @@ function makePoseInfo(argJsonData){
 
 
 		//名前の正規化
-		//区切り文字の前後の空白を削除する
-		let normalizationName = argPoseName.replace(/[ ]*(\W)[ ]*/g,'$1');
-		//連続した空白をまとめる
-		normalizationName = normalizationName.replace(/[ ][ ]*/g,' ');
+		let normalName = normalizationName(argPoseName);
 
 		let objMe = {
 				//連携情報
 				 pIndexNo : argIndexNo		//HUDのコンテンツ内の連番(0～
 				,pName : argPoseName		//ポーズ名
 				,pUuid : argCreatorUuid		//製作者UUID
-				,pNormalizationName : normalizationName	//正規化した名前
+				,pNormalizationName : normalName	//正規化した名前
+				,pNameLower : argPoseName.toLowerCase()
 
 				//表示用文字列
 				//※バリエーションだと判定された場合加工される
@@ -492,12 +526,12 @@ function makePoseInfo(argJsonData){
 				,pIsParent : false			//バリエーションが存在する
 				,pVariationNameList : null	//バリエーションの名前リスト(ソート済)
 				,pIsVariation : false		//これはバリエーションか
-				,pObjParent : null			//親のオブジェクト	※バリエーションの場合のみ設定
+				,pObjParent : null			//親ポーズののオブジェクト	※バリエーションの場合のみ設定
 
 				//HTML情報
-				,pObjScrollTarget : null	//順送りボタンによる移動のためのスクロール先
-				,pObjFlatScrollTarget : null	//順送りボタンによる移動のためのスクロール先
-				,pVariationArea : null		//HTML内のバリエーション格納エリア
+				,pElmScrollTarget : null	//順送りボタンによる移動のためのスクロール先
+				,pElmFlatScrollTarget : null	//順送りボタンによる移動のためのスクロール先
+				,pElmVariationArea : null		//HTML内のバリエーション格納エリア
 
 				//名前によるグループ情報
 				,pGroupInfo : null		//グループ情報
@@ -557,19 +591,22 @@ function cnvNum(argString){
 }
 
 //正規化した名前のリストを作成する
-//正規化したことで名前が重複した場合
-//	正規化した名前の後に「タブ＋連番」を追加する
 function makeNormalizationNameList(){
 	let objNormalizationName = new Object();
 	let objNormalizationNameUniq = new Object();
 	for(let oneName in g_nm2O){
+
 		let normalizationKey = cnvNum(g_nm2O[oneName].pNormalizationName);
+
 		if(normalizationKey in objNormalizationNameUniq){
+			//正規化の結果、重複が発生していたら
+			//後ろに「タブ＋連番」を追加する
 			++objNormalizationNameUniq[normalizationKey];
 			normalizationKey = normalizationKey + '\t' + objNormalizationNameUniq[normalizationKey];
 		}else{
 			objNormalizationNameUniq[normalizationKey] = 0;
 		}
+
 		objNormalizationName[normalizationKey] = oneName;
 	}
 	return objNormalizationName;
@@ -645,7 +682,7 @@ function makeUI(){
 			let objVariationArea = objWaku.appendChild(document.createElement('div'));
 			objVariationArea.id = objVarBtn.custId;
 			objVariationArea.className = 'csVarDiv' + argObjPose.pGroupInfo.pLevel + ' ' + objVarBtn.id;
-			argObjPose.pVariationArea = objVariationArea;
+			argObjPose.pElmVariationArea = objVariationArea;
 		}
 		return objWaku;
 	}
@@ -709,23 +746,55 @@ function makeUI(){
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+
+	//==============================
+	//リストボックスへの製作者情報の追加
+	//==============================
+	//製作者名でソート
+	let nameList = new Object();
+	for(let oneUuid in g_uuid2O){
+		let objCreator = g_uuid2O[oneUuid];
+		nameList[objCreator.pName] = objCreator;
+	}
+	let nameKeys = Object.keys(nameList);
+	nameKeys.sort(compareLowerCase);
+
+	for(let oneName of nameKeys){
+		let objCreator = nameList[oneName];
+		let opt = document.createElement('option');
+		opt.text = objCreator.pName;
+		opt.value = objCreator.pCssTag;
+		g_selCreator.appendChild(opt);
+	}
+
+	//==============================
+	//フラットなポーズリストを作成する
+	//==============================
+	//※連携された順番（in worldのコンテンツの並び）
+	for(let i in g_idx2O){
+		let objPose = g_idx2O[i];
+
+		let strClassName = 'csPoseLbl';
+		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName,true);
+		objPose.pElmFlatScrollTarget = objWaku;
+		g_poseFlatList.appendChild(objWaku);
+	}
+	//フラットなポーズリストを追加
+	//※速度をあげるため、内部要素を追加しておいてから、リストそのものを追加する
+	g_objMain.appendChild(g_poseFlatList);
+
+	//==============================
+	//Tree状のポーズリストを追加
+	//※idで要素を参照するので、先に追加しないといけない
+	//==============================
+	g_objMain.appendChild(g_poseTreeList);
+
 	//==============================
 	//正規化した名前のソート
 	//==============================
 	//空白の数などで並びが変わってしまうため
 	let normalKeys = Object.keys(g_objNormalizationNameList);
 	normalKeys.sort(compareLowerCase);
-
-	//フラットなポーズリストを作成する
-	for(let oneNormalName of normalKeys){
-		let oneName = g_objNormalizationNameList[oneNormalName];
-		let objPose = g_nm2O[oneName];
-
-		let strClassName = 'csPoseLbl';
-		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName,true);
-		objPose.pObjFlatScrollTarget = objWaku;
-		g_poseFlatList.appendChild(objWaku);
-	}
 
 	//------------------------------
 	//グループ枠を先に作成する
@@ -760,7 +829,6 @@ function makeUI(){
 		let oneName = g_objNormalizationNameList[oneNormalName];
 		let objPose = g_nm2O[oneName];
 
-
 		if(objPose.pIsVariation){
 			//バリエーションは対象外
 			continue;
@@ -776,7 +844,7 @@ function makeUI(){
 		let strGroupLbl = (objPose.pGroupInfo.pMemCount==1)?'csNoGroupLbl' + objPose.pGroupInfo.pLevel:'csInGroupLbl'
 		let strClassName = 'csPoseLbl '+ strGroupLbl;
 		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName);
-		objPose.pObjScrollTarget = objWaku;
+		objPose.pElmScrollTarget = objWaku;
 
 		if(objPose.pIsParent){
 			//親である場合
@@ -784,7 +852,7 @@ function makeUI(){
 			let objVariationNameList = objPose.pVariationNameList;
 			if(objVariationNameList!=null){
 				//バリエーションを列挙する
-				let objVariationArea = objPose.pVariationArea;
+				let objVariationArea = objPose.pElmVariationArea;
 				for(let variationKey of objVariationNameList){
 					let objPoseVariation = g_nm2O[variationKey];
 
@@ -793,7 +861,7 @@ function makeUI(){
 					//------------------------------
 					let objVariationWaku = makePartsPoseName(objPoseVariation,'csVarOne','csVarLbl');
 
-					objPoseVariation.pObjScrollTarget = objVariationWaku;
+					objPoseVariation.pElmScrollTarget = objVariationWaku;
 
 					//親のバリエーション格納用フィールドに入れる
 					objVariationArea.appendChild(objVariationWaku);
@@ -805,44 +873,24 @@ function makeUI(){
 		objInnerWaku.appendChild(objWaku);
 	}
 
-	//リストボックスの追加
-	let nameList = new Object();
-	for(let oneUuid in g_uuid2O){
-		let objCreator = g_uuid2O[oneUuid];
-		nameList[objCreator.pName] = objCreator;
-	}
-	let nameKeys = Object.keys(nameList);
-	nameKeys.sort(compareLowerCase);
-
-	let optAll = document.createElement('option');
-	optAll.text = '---all creators---';
-	optAll.value = 'all';
-	g_selCreator.appendChild(optAll);
-
-	for(let oneName of nameKeys){
-		let objCreator = nameList[oneName];
-		let opt = document.createElement('option');
-		opt.text = objCreator.pName;
-		opt.value = objCreator.pCssTag;
-		g_selCreator.appendChild(opt);
-	}
-
 	g_namesPoses = document.getElementsByName('namesPoseList');
 	g_namesPosesFlat = document.getElementsByName('namesPoseListFlat');
 
 	//チェック状態に応じて初期状態にする
 	openCloseWaku('btnGroup',false);
 	openCloseWaku('btnVariation',false);
-	changeDisplayMode();
 
-//	addStyleElement('cssDisplayMain','#csMain{display:block;}#csProgress{display:none;}');
 	addStyleElement('cssDisplayMain','#idMessage{display:none;}');
+
+	setFieldset(false);
 
 	//画面のリサイズはかからない前提
 	g_scrollHeight = document.documentElement.clientHeight - g_poseTreeList.offsetTop;
 	let divHeight = g_scrollHeight + 'px';
 	g_poseTreeList.style.height = divHeight;
 	g_poseFlatList.style.height = divHeight;
+
+	changeDisplayMode();
 
 	clearInterval(g_progressTimerId);
 }
@@ -882,7 +930,7 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 	const regExpArray = Array(isPriorityRegExp,isPriorityQuatRegExp);
 	const wordSeparatorRegExp = /([^a-z_])/i;				//単語と判断して区切らない文字列
 
-	function setVariarion(argObjVariation,argDispay,argObjParent){
+	function setVariarion(argObjVariation,argObjParent){
 		let objPoseParent = argObjParent;
 
 		if(objPoseParent.pIsVariation){
@@ -891,23 +939,6 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 			//親の親を取得
 			argObjParent = objPoseParent.pObjParent;
 
-			if(argObjVariation.pNormalizationName.startsWith(argObjParent.pNormalizationName)){
-				//親との差異を取得する
-				//	①親
-				//	②┗バリエーション
-				//	③　┗バリエーション
-				//今回の対象が③の場合、②と③の差異文字列よりも
-				//①と③の差異文字列の方が、適切なバリエーション用差分文字列が取得できる可能性が高い。
-				//
-				//ポーズ②の名前がポーズ①の名前から始まる
-				//	①'aaaaaa'
-				//	②'aaaaaaM'
-				//	上記の場合、②は①のバリエーションと判断する
-
-				argDispay = (argObjVariation.pNormalizationName.slice(argObjParent.pNormalizationName.length)).trim();
-			}else{
-				argDispay = objPoseParent.pDisplayName + ' ' + argDispay;
-			}
 		}else{
 			//親側の設定
 			objPoseParent.pIsParent = true;
@@ -915,7 +946,6 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 		//バリエーション側の設定
 		argObjVariation.pIsParent = false;		//すでに親認定されている場合もあるので解除
 		argObjVariation.pIsVariation = true;
-		argObjVariation.pDisplayName = argDispay;
 		argObjVariation.pObjParent = argObjParent;
 
 		//親にバリエーションの情報を設定する
@@ -1002,7 +1032,7 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 			objPoseVariation = argObjPoseBase;
 			objParent = argObjPoseTarget;
 		}
-		setVariarion(objPoseVariation,diffstr,objParent);
+		setVariarion(objPoseVariation,objParent);
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -1070,7 +1100,7 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 
 				let diffstr = (poseNameTarget.slice(poseNameBase.length)).trim();
 				if(!diffstr.substr(0,1).match(g_allNumericRegExp)){
-					setVariarion(objPose,diffstr,objPoseBase);
+					setVariarion(objPose,objPoseBase);
 				}
 			}else {
 				//SAPA対応
@@ -1080,8 +1110,7 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 						let sameBase	= poseNameBase.replace(/^(\d+\.\d+)(\..*)$/,'$1');
 						let sameTarget	= poseNameTarget.replace(/^(\d+\.\d+)(\..*)$/,'$1');
 						if(sameBase==sameTarget){
-							let diffstr = poseNameTarget.replace(/^(\d+\.\d+\.)(.*)$/,'$2');
-							setVariarion(objPose,diffstr,objPoseBase);
+							setVariarion(objPose,objPoseBase);
 							continue;
 						}
 					}
@@ -1101,7 +1130,7 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 							let priorityTarget= poseNameTarget.replace(regExpPattern,'$2');
 							if(priorityBase<priorityTarget){
 								//console.log('Priority:['+priorityBase+']['+poseNameBase+']['+priorityTarget+']['+poseNameTarget+']');
-								setVariarion(objPose,priorityTarget,objPoseBase);
+								setVariarion(objPose,objPoseBase);
 								isPriority = true;
 								break;
 							}else{
@@ -1170,15 +1199,6 @@ function makeVariationInfo(){
 
 			objPose.pVariationNameList = poseKeys;
 			//console.log('parent['+objPose.pName+']'+objPose.pVariationNameList);
-		}else if(objPose.pIsVariation){
-			//前後につく記号を削除する
-			//	todo:バリエーションでは使わないので、この処理は不要
-			let displayString = objPose.pDisplayName
-			displayString = displayString.replace(/^[^a-z0-9]+/i,``);
-			displayString = displayString.replace(/[^a-z0-9]+$/i,``);
-			if(displayString!=''){
-				objPose.pDisplayName = displayString;
-			}
 		}
 	}
 }
@@ -1285,31 +1305,34 @@ function groupingByName(){
 		let retString = '';
 		let sameLen = 0;
 
-		if(argPoseA.match(wordSeparatorForGroupRegExp)
-			&& argPoseB.match(wordSeparatorForGroupRegExp)
-			&& argPoseA.match(g_allNumericRegExp)
-			&& argPoseB.match(g_allNumericRegExp)){
-			//数値要素だけの文字列で
-			//単語区切りができそうなら、単語区切りで比較する。
+		//数値要素だけの文字列で
+		//単語区切りができそうなら、単語区切りで比較する。
+		//※以下を別のグループと認識できるようにするため
+		//	'151.1'
+		//	'159.1.1'
+		let isSAPA = false;
+		if(argPoseA.match(g_allNumericRegExp) && argPoseB.match(g_allNumericRegExp)){
+			if(argPoseA.match(wordSeparatorForGroupRegExp)&& argPoseB.match(wordSeparatorForGroupRegExp)){
+				isSAPA = true;
+				let arrayA = argPoseA.split(wordSeparatorForGroupRegExp);
+				let arrayB = argPoseB.split(wordSeparatorForGroupRegExp);
 
-			//※以下を別のグループと認識できるようにするため
-			//	'151.1'
-			//	'159.1.1'
-			let arrayA = argPoseA.split(wordSeparatorForGroupRegExp);
-			let arrayB = argPoseB.split(wordSeparatorForGroupRegExp);
-			let maxLen = Math.min(arrayA.length,arrayB.length);
-			for(let i=0;i<maxLen;++i){
-				let wordA = arrayA[i];
-				let wordB = arrayB[i];
-				if(wordA == wordB){
-					//一致する最長の長さを設定
-					retString += wordA;
-					sameLen = retString.length;
-				}else{
-					break;
+				let maxLen = Math.min(arrayA.length,arrayB.length);
+				for(let i=0;i<maxLen;++i){
+					let wordA = arrayA[i];
+					let wordB = arrayB[i];
+					if(wordA == wordB){
+						//一致する最長の長さを設定
+						retString += wordA;
+						sameLen = retString.length;
+					}else{
+						break;
+					}
 				}
 			}
-		}else{
+		}
+
+		if(! isSAPA){
 			//２つの文字列の共通部分を取得する
 			let maxLen = Math.min(argPoseA.length,argPoseB.length);
 			for(let len=g_sameLimitLength;len<=maxLen;++len){
@@ -1364,6 +1387,8 @@ function groupingByName(){
 
 	//グループ名候補リストを作成
 	let objGroupNameCandidateList = new Object();
+	//modifyForCompareの結果を格納（※速度更新用）
+	let objModifyForCompareList = new Object();
 	let objPosePre = null;
 	for(let oneNormalName of normalKeys){
 		let oneName = g_objNormalizationNameList[oneNormalName];
@@ -1373,10 +1398,11 @@ function groupingByName(){
 
 		//比較用にポーズ名を加工する
 		let compName = modifyForCompare(objPose.pNormalizationName);
+		objModifyForCompareList[objPose.pNormalizationName] = compName;
 
 		if(objPosePre!=null){
 			//比較用にポーズ名を加工する
-			let compNamePre = modifyForCompare(objPosePre.pNormalizationName);
+			let compNamePre = objModifyForCompareList[objPosePre.pNormalizationName];
 
 			let groupName = compareName(compNamePre,compName,false);
 			if(groupName!=null){
@@ -1394,6 +1420,7 @@ function groupingByName(){
 	candidateKeys.sort(compareLowerCaseRev);
 
 	//厳密なグループ化
+	//※myStartsWithを利用
 	for(let oneCandidate of candidateKeys){
 		for(let oneNormalName of normalKeys){
 			let oneName = g_objNormalizationNameList[oneNormalName];
@@ -1403,7 +1430,7 @@ function groupingByName(){
 			}
 
 			//比較用にポーズ名を加工する
-			let compName = modifyForCompare(objPose.pNormalizationName);
+			let compName = objModifyForCompareList[objPose.pNormalizationName];
 
 			if(myStartsWith(compName,oneCandidate)){
 				objPose.pIsGrouped = true;
@@ -1423,6 +1450,7 @@ function groupingByName(){
 	}
 	//↑↓のループはまとめないこと
 	//単純なグループ化
+	//※～.startsWithを利用
 	for(let oneCandidate of candidateKeys){
 		for(let oneNormalName of normalKeys){
 			let oneName = g_objNormalizationNameList[oneNormalName];
@@ -1432,7 +1460,7 @@ function groupingByName(){
 			}
 
 			//比較用にポーズ名を加工する
-			let compName = modifyForCompare(objPose.pNormalizationName);
+			let compName = objModifyForCompareList[objPose.pNormalizationName];
 
 			if(compName.startsWith(oneCandidate)){
 				objPose.pIsGrouped = true;
@@ -1612,6 +1640,7 @@ function groupingByName(){
 	groupKeys = Object.keys(objGroup);
 	groupKeys.sort(compareLowerCase);
 	let higherGroupSeq = 0;
+	//全製作者
 	for(let oneCreatorTag in objCreatorTagList){
 		//製作者単位で処理を行う
 		let oneCreatorGroup = objCreatorTagList[oneCreatorTag];
@@ -1625,14 +1654,19 @@ function groupingByName(){
 		}
 
 		if(Object.keys(oneCreatorGroup.pGroupNameList).length<=1){
+			//その製作者のグループが１つしかない場合、後続を処理しない
 			continue;
 		}
 
 		//グループ名の共通部分をまとめる
 		//	二周回す
+		//	一周目：グループ名の中から共通する名前を探す
+		//	二周目：↑で作成したグループ名の中からさらに共通する名前を探す
 		let groupNamePre = null;
 		for(let i=0;i<2;++i){
 			let newGroupList = new Object();
+
+			groupNamePre = null;
 			let srcGroupList = (i==0)?oneCreatorGroup.pGroupNameList:oneCreatorGroup.pHigerGroupNameList
 			for(let groupName in srcGroupList){
 				//元になるグループ名を設定する
@@ -1666,7 +1700,6 @@ function groupingByName(){
 				if(groupListLen==1){
 					break;
 				}
-				srcGroupList = newGroupList;
 			}
 		}
 
@@ -1676,7 +1709,11 @@ function groupingByName(){
 		}
 
 		//全てのグループに、属している上位グループの情報を設定する
-		for(let higherGroupName in oneCreatorGroup.pHigerGroupNameList){
+		//※できるだけ長い名前に一致するように降順で処理する
+		let higherCandidateKeys = Object.keys(oneCreatorGroup.pHigerGroupNameList);
+		higherCandidateKeys.sort(compareLowerCaseRev);
+
+		for(let higherGroupName of higherCandidateKeys){
 			let higherGroupId = 'idHigerGroup' + oneCreatorGroup.pHigerGroupNameList[higherGroupName];
 
 			//全ての上位グループ名に対して処理を行う
@@ -1791,15 +1828,12 @@ function updateProgress(argTotalCounter=null){
 		g_progressValue = 0;
 
 		g_progressTimerId = setInterval(updateProgressValue,100);
-		console.log('g_progressTimerId:'+g_progressTimerId);
+		//console.log('g_progressTimerId:'+g_progressTimerId);
 	}else{
 		++g_progressValue;
 		//console.log(g_progressBar.value);
 	}
 }
-
-
-
 
 function makeBaseHtml(){
 	function addElmDiv(argAppendObject,argId=null,argClassName=null){
@@ -1843,9 +1877,14 @@ function makeBaseHtml(){
 		}
 	}
 
-	function addElmCheckLabel(argAppendObject,argId,argCheckClassName,argLabelClassName,argChecked,argLabelText,argOnClick){
+	function addElmCheckLabel(argAppendObject,argRadioName,argId,argCheckClassName,argLabelClassName,argChecked,argLabelText,argOnClick){
 		let objCheckBox = document.createElement('input');
-		objCheckBox.type = 'checkbox';
+		if(argRadioName==null){
+			objCheckBox.type = 'checkbox';
+		}else{
+			objCheckBox.type = 'radio';
+			objCheckBox.name = argRadioName;
+		}
 		objCheckBox.id = argId;
 		if(argCheckClassName!=null){
 			objCheckBox.className = argCheckClassName;
@@ -1888,23 +1927,27 @@ function makeBaseHtml(){
 		return objFieldset;
 	}
 
-	let objMain = addElmDiv(null,'csMain');
-	let objCtrl = addElmDiv(objMain,'idCtrl');
+	g_objMain = addElmDiv(null,'idMain');
+	let objCtrl = addElmDiv(g_objMain,'idCtrl');
 
 	//==============================
 	//絞り込み・タイマー
 	//==============================
-	let elmCtrlLeft = addElmDiv(objCtrl,null,'csNoWaku1');
+	let elmCtrlLeft = addElmDiv(objCtrl,null,'csNoWakuLeft');
 	let elmWakuCreator = addElmFieldset(elmCtrlLeft,'idWakuCreator','csWaku',null,'creator',null);
 
 	//製作者関係
 	g_selCreator = addElmSelect(elmWakuCreator,'selCreatorIdx',function(){changeCreator();});
+	let optAll = document.createElement('option');
+	optAll.text = '---all creators---';
+	optAll.value = 'all';
+	g_selCreator.appendChild(optAll);
 	addElmButton(elmWakuCreator,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();},true);
 
 	//移動関係
 	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
 	let elmWakuTimer = addElmFieldset(elmWakuCursor,null,'csTimerIn',null,null);
-	g_btnTimer = addElmCheckLabel(elmWakuTimer,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
+	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
 	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
 
 	//timerの間隔設定
@@ -1925,24 +1968,34 @@ function makeBaseHtml(){
 	//==============================
 	//HUDのコントロール
 	//==============================
-	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWaku3');
+	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWakuRight');
 
-	let elmWakuCtrlHUD = addElmFieldset(elmCtrlRight,null,'csCtrl',null,null);
+	let elmWakuCtrlHUD = addElmFieldset(elmCtrlRight,'idCtrlRight','csCtrl',null,null);
 	//再生ボタン
-	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
+	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,null,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
 	let elmWakuCtrlHUD2 = addElmFieldset(elmWakuCtrlHUD,null,'csCtrlIn',null,null);
 	//HUD制御
 	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
 	addElmButton(elmWakuCtrlHUD2,null,'csActBtn csDetachBtn','X',function(){sendCommand('DETACH');});
 
-
 	let objDummySpan = document.createElement('span');
-	g_btnTree		= addElmCheckLabel(objDummySpan,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,'tree',function(){changeDisplayMode()});
+	g_btnTree		= addElmCheckLabel(objDummySpan,'nmDisplay','btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,'tree',function(){changeDisplayMode()});
 
-	let elmWakuDisplay = addElmFieldset(elmCtrlRight,null,'csWaku',null,null,objDummySpan);
-	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
+	let elmWakuDisplay = addElmFieldset(elmCtrlRight,'idTreeCtrl','csWaku',null,null,objDummySpan);
+	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
 	elmWakuDisplay.appendChild(document.createElement('br'));
-	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variations',function(){openCloseWaku();});
+	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variations',function(){openCloseWaku();});
+
+
+	let objFlatSpan = document.createElement('span');
+	addElmCheckLabel(objFlatSpan,'nmDisplay','btnFlat'		,null,'csBtnCmnLbl displayLabel'	,false,'flat',function(){changeDisplayMode()});
+	let elmWakuDisplayFlat = addElmFieldset(elmCtrlRight,'idFlatCtrl','csWaku',null,null,objFlatSpan);
+
+	g_searchText = document.createElement('input');
+	g_searchText.type = 'text';
+	g_searchText.id = 'searchText';
+	g_searchText.placeholder = 'search String';
+	elmWakuDisplayFlat.appendChild(g_searchText);
 
 	//プログレスバー
 	let elmWakuProgress = addElmFieldset(elmCtrlRight,'idMessage','csWaku',null,null,null);
@@ -1952,15 +2005,53 @@ function makeBaseHtml(){
 	g_progressBar.max = 100;
 	elmWakuProgress.appendChild(g_progressBar);
 
-
-	//==============================
-	//ポーズリスト
-	//==============================
-	g_poseTreeList = addElmDiv(objMain,'dPoseTreeList');
-	g_poseFlatList = addElmDiv(objMain,'dPoseFlatList');
+	//ポーズ追加用のリスト
+	g_poseTreeList = addElmDiv(null,'dPoseTreeList');
+	g_poseFlatList = addElmDiv(null,'dPoseFlatList');
 
 	let docBody = document.body;
-	docBody.appendChild(objMain);
+	docBody.appendChild(g_objMain);
+
+	$('#searchText').on('input', searchPose);
+
+	setFieldset(true);
+}
+
+//ポーズ検索処理
+function searchPose(){
+	let serchText = g_searchText.value;
+	if(serchText == ''){
+		//全表示処理
+		for(let oneName in g_nm2O){
+			let objPose = g_nm2O[oneName];
+			objPose.pElmFlatScrollTarget.classList.remove('csHide');
+		}
+	}
+	serchText = serchText.toLowerCase()
+
+	let displayString;
+	for(let oneName in g_nm2O){
+		let objPose = g_nm2O[oneName];
+		if (objPose.pNameLower.indexOf(serchText) != -1) {
+			objPose.pElmFlatScrollTarget.classList.remove('csHide');
+		}else{
+			objPose.pElmFlatScrollTarget.classList.add('csHide')
+		}
+	}
+}
+
+function setFieldset(argDisabled){
+	document.getElementById('idWakuCreator').disabled = argDisabled;
+	document.getElementById('idWakuCursor').disabled = argDisabled;
+	document.getElementById('idCtrlRight').disabled = argDisabled;
+	document.getElementById('idTreeCtrl').disabled = argDisabled;
+
+	document.getElementById('timerOn').disabled = argDisabled;
+	document.getElementById('playBtn').disabled = argDisabled;
+	document.getElementById('btnTree').disabled = argDisabled;
+
+	document.getElementById('btnGroup').disabled = argDisabled;
+	document.getElementById('btnVariation').disabled = argDisabled;
 }
 
 $(document).ready(function() {
