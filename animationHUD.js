@@ -54,8 +54,11 @@ let g_currentIndex = 0;
 //進捗状況表示
 //==============================
 let g_progressBar;
-let g_progressTimerId = null;
 let g_progressValue = 0;;
+
+let g_receiveEnd = false;
+let g_receiveId = null;
+const receiveMS = 200;
 
 //==============================
 //システムであらかじめつくった上位グループ
@@ -334,28 +337,30 @@ function requestList(argDataType,argCreatorUuidCsv,argCurrentIndex){
 	);
 }
 
-function makeUuidCsv(){
-	//一回に送る最大件数
-	//※llRequestAgentDataには0.1秒のディレイがあり
-	//	問い合わせ結果が返ってくる前の時間を考えるとあまり大きくはできない。
-	const maxCount = 20;
-	let cnt = 0;
-	let csvData = '';
-	for(let oneUuid in g_uuid2O){
-		let objCreator = g_uuid2O[oneUuid];
-		if(objCreator.pName==null){
-			//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
-
-			csvData += ',' + oneUuid;
-			if(++cnt >= maxCount){
-				return csvData;
-			}
-		}
-	}
-	return csvData;
-}
 
 function testA(){
+	function makeUuidCsv(){
+		//一回に送る最大件数
+		//※llRequestAgentDataには0.1秒のディレイがあり
+		//	問い合わせ結果が返ってくる前の時間を考えるとあまり大きくはできない。
+		const maxCount = 20;
+		let cnt = 0;
+		let csvData = '';
+		for(let oneUuid in g_uuid2O){
+			let objCreator = g_uuid2O[oneUuid];
+			if(objCreator.pName==null){
+				//未解決の「UUID→名前」がある場合、要求を行い、関数を終了する。
+
+				csvData += ',' + oneUuid;
+				if(++cnt >= maxCount){
+					return csvData;
+				}
+			}
+		}
+		return csvData;
+	}
+
+	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 	clearInterval(g_renkeiTid);
 
 	if(g_jsonData.dType==g_dataTypeINIT){
@@ -387,15 +392,7 @@ function testA(){
 		}
 
 		//データ全件受信完了
-		//==============================
-		//名前の正規化
-		//==============================
-		g_objNormalizationNameList =  makeNormalizationNameList();
-
-		//名前によるグルーピング
-		groupingByName();
-		//画面を作成する
-		makeUI();
+		g_receiveEnd = true;
 	}
 }
 
@@ -904,8 +901,6 @@ function makeUI(){
 
 	changeDisplayMode();
 
-	clearInterval(g_progressTimerId);
-
 	changeSayMode();
 }
 
@@ -939,8 +934,8 @@ function makeUI(){
 //	数値A.数値B.数値Cの場合数値Cはバリエーション扱いする
 //
 function makeVariationSub(argPoseKeyList,argPoseNameList){
-	const isPriorityRegExp = /^(.*)\b((?:P|Priority|V|Version)[ _=\-]*\d)$/i;	//優先度っぽいか
-	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Priority|V|Version)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
+	const isPriorityRegExp = /^(.*)\b((?:P|Prio|Priority|V|Version)[ _=\-]*\d)$/i;	//優先度っぽいか
+	const isPriorityQuatRegExp = /^(.*)\b([\(\[]*(?:P|Prio|Priority|V|Version)[ _=\-]*\d[/)/]]*)$/i;	//優先度っぽいか
 	const regExpArray = Array(isPriorityRegExp,isPriorityQuatRegExp);
 	const wordSeparatorRegExp = /([^a-z_])/i;				//単語と判断して区切らない文字列
 
@@ -1217,33 +1212,6 @@ function makeVariationInfo(){
 	}
 }
 
-//	argTargetStringがargBaseStringに文字を足したものか判定
-//	上記の条件を満たしていても、以下のどちらかを満たしていない場合、falseとする
-//	・追加した文字列長が2文字以上であること
-//	・追加した文字列の先頭が数値であること
-function myStartsWith(argTargetString,argBaseString){
-	let returnValue = false;
-	if(!argTargetString.startsWith(argBaseString)){
-		//基本の名前から始まっていない場合は即、終了
-		return returnValue;
-	}
-
-	if(argBaseString.length + g_sameLimitLength >= argTargetString.length){
-		//差異のある文字数が規定数以下であれば、一致と判断する
-		returnValue = true;
-	}
-	//差異部分の抜き出し
-	let diffString = (argTargetString.slice(argBaseString.length)).trim();
-	//差異部分の先頭の英数字以外を抜き出す
-	diffString = diffString.replace(/^[^a-z0-9]+/i,'');
-	if(diffString.substr(0,1).match(g_allNumericRegExp)){
-		//差異の１文字目が数字であればOK
-		returnValue = true;
-	}
-
-	return returnValue;
-}
-
 //名前でグループ化する
 function groupingByName(){
 	//グループ化の際に文字列を区切る
@@ -1252,7 +1220,7 @@ function groupingByName(){
 	//	'Aiko Animation 1 Priority 4'
 	//		↓
 	//	'Aiko Animation 1'
-	const delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Priority|V|Version)[ ]*[^a-z]+$/i;
+	const delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Prio|Priority|V|Version)[ ]*[^a-z]+$/i;
 	//最後の数字などを除去
 	//	'STUN Anim - Malvene 1'
 	//		↓
@@ -1260,6 +1228,33 @@ function groupingByName(){
 	const delLastNumericRegExp = /^(.*[a-z])[^a-z]+$/i;
 
 	let objGroup = new Object();
+
+	//	argTargetStringがargBaseStringに文字を足したものか判定
+	//	上記の条件を満たしていても、以下のどちらかを満たしていない場合、falseとする
+	//	・追加した文字列長が2文字以上であること
+	//	・追加した文字列の先頭が数値であること
+	function myStartsWith(argTargetString,argBaseString){
+		let returnValue = false;
+		if(!argTargetString.startsWith(argBaseString)){
+			//基本の名前から始まっていない場合は即、終了
+			return returnValue;
+		}
+
+		if(argBaseString.length + g_sameLimitLength >= argTargetString.length){
+			//差異のある文字数が規定数以下であれば、一致と判断する
+			returnValue = true;
+		}
+		//差異部分の抜き出し
+		let diffString = (argTargetString.slice(argBaseString.length)).trim();
+		//差異部分の先頭の英数字以外を抜き出す
+		diffString = diffString.replace(/^[^a-z0-9]+/i,'');
+		if(diffString.substr(0,1).match(g_allNumericRegExp)){
+			//差異の１文字目が数字であればOK
+			returnValue = true;
+		}
+
+		return returnValue;
+	}
 
 	function makeNewGroup(argPoseList=null){
 		if(argPoseList==null){
@@ -1382,6 +1377,53 @@ function groupingByName(){
 		returnPoseName = returnPoseName.replace(delPriorityRegExp,'$1');
 		returnPoseName = returnPoseName.replace(delLastNumericRegExp,'$1');
 		return returnPoseName;
+	}
+
+	//単語と判断して区切らない文字列
+	//英数字のみを単語とする
+	//※\Wと違って、アンダーバーも区切り文字と判断する
+	const wordSeparator02RegExp = /([^a-z0-9])/i;
+	//２つの文字列の共通部分を抜き出す
+	//単語単位で文字の先頭から一致する部分を抜き出す
+	function makeMergeWord(argGroupName01,argGroupName02){
+		//単語単位に区切る
+		let array01 = argGroupName01.split(wordSeparator02RegExp);
+		let array02 = argGroupName02.split(wordSeparator02RegExp);
+
+		let len01 = array01.length;
+		let len02 = array02.length;
+
+		let maxLen = Math.min(len01,len02);
+
+		let matchCount = 0;	//一致した項目数
+		//先頭方向から不一致の単語にあたるまで処理を行う
+		for(let i=0;i<maxLen;++i){
+			if(array01[i]==array02[i]){
+				++matchCount;
+			}else{
+				break;
+			}
+		}
+		if(matchCount == 0){
+			//ひとつも一致しなければ抜ける
+			return null;
+		}
+
+		let arrayMerge = array01.slice(0,matchCount);
+		for(i=arrayMerge.length-1;i>=0;--i){
+			if(arrayMerge[i].match(wordSeparator02RegExp)){
+				//終端が区切り文字なら削除する
+				arrayMerge.splice(i,1);
+			}else{
+				break;
+			}
+		}
+		if(arrayMerge.length<=0){
+			return null;
+		}
+
+		//一致した部分を接続して返す。
+		return arrayMerge.join('');
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -1683,29 +1725,25 @@ function groupingByName(){
 			groupNamePre = null;
 			let srcGroupList = (i==0)?oneCreatorGroup.pGroupNameList:oneCreatorGroup.pHigerGroupNameList
 			for(let groupName in srcGroupList){
-				//元になるグループ名を設定する
-				let oneGroup = objGroup[groupName];
-
+				let sameName = null;
 				if(groupName.match(/^\d./)){
 					//１桁目が数字の場合、数字グループを作成する
-					if(!(g_numericGroupName in newGroupList)){
-						//上位グループ名と連番を採番
-						newGroupList[g_numericGroupName] = higherGroupSeq++;
-					}
+					sameName = g_numericGroupName;
 				}else{
 					if(groupNamePre != null){
-						let sameName = compareName(groupNamePre,groupName,false);
+						sameName = compareName(groupNamePre,groupName,false);
 						if(sameName!=null){
 							sameName = sameName.replace(delLastNumericRegExp,'$1');
-							if(!(sameName in newGroupList)){
-								//上位グループ名と連番を採番
-								newGroupList[sameName] = higherGroupSeq++;
-							}
-						}else{
-							//console.log('none3 groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 						}
 					}
 				}
+				if(sameName!=null){
+					if(!(sameName in newGroupList)){
+						//上位グループ名と連番を採番
+						newGroupList[sameName] = higherGroupSeq++;
+					}
+				}
+
 				groupNamePre = groupName;
 			}
 			let groupListLen = Object.keys(newGroupList).length;
@@ -1831,21 +1869,12 @@ function compareLowerCaseRev(a, b) {
 
 //プログレスバー設定
 function updateProgress(argTotalCounter=null){
-	function updateProgressValue(){
-		g_progressBar.value = g_progressValue;
-		console.log(g_progressBar.value);
-	}
 	if(argTotalCounter!=null){
-		g_progressBar.max = argTotalCounter;
-		g_progressBar.value = 0;
-
 		g_progressValue = 0;
-
-		g_progressTimerId = setInterval(updateProgressValue,100);
-		//console.log('g_progressTimerId:'+g_progressTimerId);
+		g_progressBar.max = argTotalCounter;
+		g_progressBar.value = g_progressValue;
 	}else{
 		++g_progressValue;
-		//console.log(g_progressBar.value);
 	}
 }
 
@@ -2080,11 +2109,33 @@ function setFieldset(argDisabled){
 	g_btnSay.disabled = argDisabled;
 }
 
+function receiveWait(){
+	clearInterval(g_receiveId)
+
+	if(!g_receiveEnd){
+		g_progressBar.value = g_progressValue;
+		g_receiveId = setInterval(receiveWait,receiveMS);
+	}else{
+		//==============================
+		//名前の正規化
+		//==============================
+		g_objNormalizationNameList =  makeNormalizationNameList();
+
+		//名前によるグルーピング
+		groupingByName();
+		//画面を作成する
+		makeUI();
+	}
+}
+
 $(document).ready(function() {
 		//よく使うものを変数で持っておく
 		g_objHead = document.getElementsByTagName('head').item(0);
 
 		makeBaseHtml();
+		g_receiveEnd = false;
+
+		g_receiveId = setInterval(receiveWait,receiveMS);
 
 		let isLocal = (location.href).startsWith('file://');
 		if(isLocal){
