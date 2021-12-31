@@ -1,8 +1,19 @@
-4//==============================
+//==============================
 //正規表現パターン
 //==============================
 //数字と判断する
 const g_allNumericRegExp = /^[\d#\. ]+$/;
+
+//最後の優先度を含んだ数字を削除
+//	'Aiko Animation 1 Priority 4'
+//		↓
+//	'Aiko Animation 1'
+const g_delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Prio|Priority|V|Version)[ ]*[^a-z]+$/i;
+//最後の数字などを除去
+//	'STUN Anim - Malvene 1'
+//		↓
+//	'STUN Anim - Malvene'
+const g_delLastNumericRegExp = /^(.*[a-z])\b([^a-z]+)$/i;
 
 const g_sameLimitLength = 2;
 
@@ -70,6 +81,18 @@ let g_systemGroupList = new Object();
 const g_numericGroupName = '#number |* system group *|';	//数値グループの上位
 g_systemGroupList[g_numericGroupName] = null;
 
+//==============================
+//よく使うIDなどなど
+//==============================
+//ポーズ格納DIVのID
+const g_IdFlatList = 'dPoseFlatList';
+const g_IdTreeList = 'dPoseTreeList';
+
+
+
+
+
+
 //自動順送り
 function timerAction(){
 	if( typeof timerAction.tId == 'undefined' ){
@@ -86,7 +109,7 @@ function timerAction(){
 
 //現在選択されているradioの番号を求める（0～
 function getCursorIndex(){
-	for(let i=0;i<g_targetNameList.length;++i){
+	for(let i=0,len=g_targetNameList.length;i<len;++i){
 		if(g_targetNameList[i].checked){
 			return i;
 		}
@@ -146,7 +169,7 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 	if(isSearchNext){
 		const addVal = (argIsPrev) ? -1:1;
 		//全て非表示の場合もあるので、最大一周までに限定している
-		for(let i=0;i<g_targetNameList.length;++i){
+		for(let i=0,len=g_targetNameList.length;i<len;++i){
 			curIndex += addVal;
 			if(curIndex<0){curIndex = indexMax;
 			}else if(curIndex>indexMax){curIndex = 0;
@@ -195,7 +218,7 @@ function setCreatorList(){
 	let cssTag = objPose.pCreatorInfo.pCssTag;
 
 	let creatorOptions = g_selCreator.options;
-	for(let i=0;i<creatorOptions.length;++i){
+	for(let i=0,len=creatorOptions.length;i<len;++i){
 		if(creatorOptions[i].value == cssTag){
 			creatorOptions[i].selected = true;
 			break;
@@ -248,12 +271,12 @@ function changeDisplayMode(){
 	delStyleSheet(styleId);
 
 	g_targetNameList = g_namesPosesFlat;
-	let targetDisplayTag = 'dPoseFlatList';
-	let targetHiddenTag = 'dPoseTreeList';
+	let targetDisplayTag = g_IdFlatList;
+	let targetHiddenTag = g_IdTreeList;
 	if(g_btnTree.checked){
 		g_targetNameList = g_namesPoses;
-		targetDisplayTag = 'dPoseTreeList';
-		targetHiddenTag = 'dPoseFlatList';
+		targetDisplayTag = g_IdTreeList;
+		targetHiddenTag = g_IdFlatList;
 	}
 	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
 	g_btnVariation.disabled = g_btnGroup.disabled = ! g_btnTree.checked;
@@ -286,7 +309,7 @@ function openCloseWaku(argTragetId=null,argChecked=null) {
 		//btnVariationList / btnGroupList
 		let objNameList = document.getElementsByName(targetId + 'List');
 		//↓ここはfor inにするとプロパティも入ってくるので注意
-		for(let i=0 ;i<objNameList.length;++i){
+		for(let i=0,len=objNameList.length;i<len;++i){
 			let oneTarget = objNameList[i];
 			oneTarget.checked = objCheckItem.checked;
 
@@ -452,7 +475,7 @@ function makePoseInfo(argJsonData){
 
 		//製作者情報リスト（'|'区切り）を分割
 		let creatorListPsv = (argJsonData.uuidList).split('|');
-		for(let i=0;i<creatorListPsv.length;i+=2){
+		for(let i=0,len=creatorListPsv.length;i<len;i+=2){
 			let creatorName = unescape(creatorListPsv[i]);
 			let creatorUuid = unescape(creatorListPsv[i+1]);
 			//console.log(creatorUuid+':'+creatorName);
@@ -473,6 +496,10 @@ function makePoseInfo(argJsonData){
 
 		//連続した空白をまとめる
 		normalName = normalName.replace(/[ ][ ]*/g,' ');
+
+		//先頭の記号を削除
+		normalName = normalName.replace(/^[^a-z0-9]+([a-z0-9]+.*$)/i,'$1');
+
 
 		//番号から始まっていたら
 		//※以下のパターンへの対応
@@ -499,8 +526,19 @@ function makePoseInfo(argJsonData){
 		return normalName;
 	}
 
+	//比較用にポーズ名を加工する
+	function modifyForCompare(argPoseName){
+		let returnPoseName = argPoseName;
+		//プライオリティっぽいものを消す
+		returnPoseName = returnPoseName.replace(g_delPriorityRegExp,'$1');
+		//数字っぽいものを消す
+		returnPoseName = returnPoseName.replace(g_delLastNumericRegExp,'$1');
+		return returnPoseName;
+	}
+
 	//animation情報格納用のオブジェクト作成
 	function makeObjPose(argIndexNo,argPoseName,argCreatorUuid) {
+
 		//製作者情報の作成
 		if(!(argCreatorUuid in g_uuid2O)){
 
@@ -511,21 +549,35 @@ function makePoseInfo(argJsonData){
 				 pNo : creatorSeq
 				,pCssTag : 'css_creator_' + creatorSeq
 				,pName : null		//nullの場合、名前要求をする
+
+									//ポーズ情報
+				,pPoseNameList : new Object()
+									//クリエイターが同じポーズ名のリストを作成する
+									//pPoseNameList[ポーズ名] = ポーズオブジェクト
+				,pPoseCount : 0		//↑の個数
+
+									//↓正規化した名前のリスト（キーは正規化した名前、アイテムは素の名前）
+				,pNormalizationNameList : null
+				,pNormalizationNameSortedKeys : null
+									//正規化した名前のキーリスト（ソート済）
+
 			}
 		}
 		let objCreator = g_uuid2O[argCreatorUuid];
 
-
 		//名前の正規化
 		let normalName = normalizationName(argPoseName);
+		let modName = modifyForCompare(normalName);
+		//console.log('argPoseName:['+argPoseName+']normalName:['+normalName+']modName:['+modName+']');
 
-		let objMe = {
+		let objPose = {
 				//連携情報
 				 pIndexNo : argIndexNo		//HUDのコンテンツ内の連番(0～
 				,pName : argPoseName		//ポーズ名
 				,pUuid : argCreatorUuid		//製作者UUID
 				,pNormalizationName : normalName	//正規化した名前
-				,pNameLower : argPoseName.toLowerCase()
+				,pModifyForCompare : modName		//比較用の加工文字列
+				,pNameForSearch : argPoseName.toLowerCase()
 
 				//表示用文字列
 				//※バリエーションだと判定された場合加工される
@@ -544,12 +596,16 @@ function makePoseInfo(argJsonData){
 
 				//名前によるグループ情報
 				,pGroupInfo : null		//グループ情報
+										//内容は、 makeNewGroup() を参照
 				,pIsGrouped : false		//このメンバーがグループに入ったか
 
 				//製作者情報
 				,pCreatorInfo : objCreator
 			}
-		return objMe;
+
+		objCreator.pPoseNameList[argPoseName] = objPose;
+		objCreator.pPoseCount ++;
+		return objPose;
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -557,7 +613,7 @@ function makePoseInfo(argJsonData){
 	//ポーズリスト（'|'区切り）を分割
 	let poseListPsv = (argJsonData.poseList).split('|');
 
-	for(let i=0;i<poseListPsv.length;i+=3){
+	for(let i=0,len=poseListPsv.length;i<len;i+=3){
 		let psvIndex = poseListPsv[i];				//in worldのcontentsの連番（０～
 		let psvName = unescape(poseListPsv[i+1]);	//ポーズ名
 		let psvUuid = poseListPsv[i+2];				//製作者のUuid
@@ -600,10 +656,11 @@ function cnvNum(argString){
 }
 
 //正規化した名前のリストを作成する
-function makeNormalizationNameList(){
+function makeNormalizationNameList(argTargetKeys){
 	let objNormalizationName = new Object();
 	let objNormalizationNameUniq = new Object();
-	for(let oneName in g_nm2O){
+
+	for(let oneName of argTargetKeys){
 
 		let normalizationKey = cnvNum(g_nm2O[oneName].pNormalizationName);
 
@@ -634,7 +691,7 @@ function makeUI(){
 		if(argText!=null){
 			//objLabel.appendChild(document.createTextNode(argText));
 			//連続したスペースが反映されないため
-			objLabel.innerHTML = argText.replace(' ','&nbsp;');
+			objLabel.innerHTML = argText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
 		}
 
 		if(argTitle!=null){
@@ -902,6 +959,7 @@ function makeUI(){
 	changeDisplayMode();
 
 	changeSayMode();
+	sendCommand('READY');
 }
 
 //==============================
@@ -1216,16 +1274,6 @@ function makeVariationInfo(){
 function groupingByName(){
 	//グループ化の際に文字列を区切る
 	const wordSeparatorForGroupRegExp = /(\W)/;
-	//最後の優先度を含んだ数字を削除
-	//	'Aiko Animation 1 Priority 4'
-	//		↓
-	//	'Aiko Animation 1'
-	const delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Prio|Priority|V|Version)[ ]*[^a-z]+$/i;
-	//最後の数字などを除去
-	//	'STUN Anim - Malvene 1'
-	//		↓
-	//	'STUN Anim - Malvene'
-	const delLastNumericRegExp = /^(.*[a-z])[^a-z]+$/i;
 
 	let objGroup = new Object();
 
@@ -1283,24 +1331,24 @@ function groupingByName(){
 	}
 
 	//グループ情報を移動する
-	function fullNameMove(argGroupNameTo,argGroupNameFrom,argIsMove,argPoseList){
+	function fullNameMove(argObjGroup,argGroupNameTo,argGroupNameFrom,argIsMove,argPoseList){
 		let objFromPoseList = argPoseList;
 		if(argGroupNameFrom!=null){
 			if(argGroupNameFrom==argGroupNameTo){
 				//移動前後のグループが同じなら処理しない
 				return;
 			}
-			objFromPoseList = objGroup[argGroupNameFrom].pPoseList;
+			objFromPoseList = argObjGroup[argGroupNameFrom].pPoseList;
 		}
 
-		let objToPoseList = objGroup[argGroupNameTo].pPoseList;
+		let objToPoseList = argObjGroup[argGroupNameTo].pPoseList;
 		for(let oneKey in objFromPoseList){
 			objToPoseList[oneKey] = objFromPoseList[oneKey];
 			delete objFromPoseList[oneKey];
 		}
 		if(argIsMove){
 			//処理済情報は削除する
-			delete objGroup[argGroupNameFrom];
+			delete argObjGroup[argGroupNameFrom];
 		}
 	}
 
@@ -1338,9 +1386,11 @@ function groupingByName(){
 						break;
 					}
 				}
+			}else{
+				isSAPA = true;
 			}
 		}
-
+		//console.log('isSAPA:'+isSAPA+'/argPoseA['+argPoseA+']/argPoseB['+argPoseB+']');
 		if(! isSAPA){
 			//２つの文字列の共通部分を取得する
 			let maxLen = Math.min(argPoseA.length,argPoseB.length);
@@ -1350,6 +1400,13 @@ function groupingByName(){
 					//一致する最長の長さを設定
 					sameLen = len;
 					retString = poseA;
+//				}else if((poseA.match(/[^a-z0-9]/i)) && (argPoseB.match(/[^a-z0-9]/i))){
+//					//todo:考慮の余地あり
+//
+//					//両方が区切り文字なら一致とみなす
+//					sameLen = len;
+//					retString = poseA;
+
 				}else{
 					break;
 				}
@@ -1362,21 +1419,29 @@ function groupingByName(){
 			//※差異部分が無視してもよい文字列の場合、同一視する
 			let diffA = (argPoseA.substr(sameLen)).replace(objRegExp,'');
 			let diffB = (argPoseB.substr(sameLen)).replace(objRegExp,'');
-			if((diffA=='')&&(diffB=='')){
-				return (retString=='')?null:retString;
-			}else{
+			if((diffA!='')||(diffB!='')){
 				return null;
 			}
 		}
-		return (retString=='')?null:retString;
-	}
 
-	//比較用にポーズ名を加工する
-	function modifyForCompare(argPoseName){
-		let returnPoseName = argPoseName;
-		returnPoseName = returnPoseName.replace(delPriorityRegExp,'$1');
-		returnPoseName = returnPoseName.replace(delLastNumericRegExp,'$1');
-		return returnPoseName;
+		//小細工
+		//console.log(retString);
+		let refStringModify = retString;
+		if(refStringModify.match(/^(.*[a-z0-9])[^a-z0-9]+$/i)){
+			//最後に区切り文字がくるのを許さない
+			refStringModify = refStringModify.replace(/^(.*[a-z0-9])[^a-z0-9]+$/i,'$1');
+			//console.log('retString['+retString+']->A:'+refStringModify);
+		}else if(refStringModify.match(/^(.*[a-z0-9])[^a-z0-9]+[a-z0-9]$/i)){
+			//最後が「区切り文字＋１文字」を許さない
+			refStringModify = refStringModify.replace(/^(.*[a-z0-9])[^a-z0-9]+[a-z0-9]$/i,'$1');
+			//console.log('retString['+retString+']->B:'+refStringModify);
+		}
+		if(refStringModify.length>=g_sameLimitLength){
+			//小細工の後、既定の文字数を割るのは許さない
+			retString = refStringModify;
+		}
+
+		return (retString=='')?null:retString;
 	}
 
 	//単語と判断して区切らない文字列
@@ -1428,6 +1493,35 @@ function groupingByName(){
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
+	//全製作者を対象に処理を行う
+	for(let oneUuid in g_uuid2O){
+		let objCreator = g_uuid2O[oneUuid];
+		if(objCreator.pPoseCount<=0){
+			continue;
+		}
+
+		//製作者単位で処理を行う。
+		let sortedKeys = objCreator.pNormalizationNameSortedKeys;
+
+		/*グループ名候補の作成*/
+		LabelMakeGroupCandidateByWord:{
+			let objGroupNameCandidateListByWords = new Object();
+			let objGroupNameCandidateListByString = new Object();
+
+			let onePosePre = null;
+			//製作者内の全ポーズをチェックする
+			for(let oneNormalName of sortedKeys){
+				let oneName = objCreator.pNormalizationNameList[oneNormalName];
+				let onePose = objCreator.pPoseNameList[oneName];
+				//console.log(objCreator.pName + ':' + oneNormalName + ':' + onePose.pName + ':' + objCreator.pPoseCount);
+
+				if(onePosePre != null){
+				}
+				onePosePre = onePose;
+			}
+		}
+	}
+
 	//==============================
 	//正規化した名前のソート
 	//==============================
@@ -1441,95 +1535,90 @@ function groupingByName(){
 	//同一製作者かどうかは問わない
 	//※todo:この時点で同一製作者単位で処理を行ってもよかったかもしれない。
 
-	//グループ名候補リストを作成
-	let objGroupNameCandidateList = new Object();
-	//modifyForCompareの結果を格納（※速度更新用）
-	let objModifyForCompareList = new Object();
-	let objPosePre = null;
-	for(let oneNormalName of normalKeys){
-		let oneName = g_objNormalizationNameList[oneNormalName];
-		let objPose = g_nm2O[oneName];
-
-		let poseName = objPose.pName;
-
-		//比較用にポーズ名を加工する
-		let compName = modifyForCompare(objPose.pNormalizationName);
-		objModifyForCompareList[objPose.pNormalizationName] = compName;
-
-		if(objPosePre!=null){
-			//比較用にポーズ名を加工する
-			let compNamePre = objModifyForCompareList[objPosePre.pNormalizationName];
-
-			let groupName = compareName(compNamePre,compName,false);
-			if(groupName!=null){
-				groupName = groupName.trimEnd();
-				if(!(groupName in objGroupNameCandidateList)){
-					objGroupNameCandidateList[groupName] = null;
-				}
-			}
-		}
-		objPosePre = objPose;
-	}
-
-	//候補を降順に並び替える（基本的に文字列長が長い順に処理したい）
-	let candidateKeys = Object.keys(objGroupNameCandidateList);
-	candidateKeys.sort(compareLowerCaseRev);
-
-	//厳密なグループ化
-	//※myStartsWithを利用
-	for(let oneCandidate of candidateKeys){
+	LabelComparePose: {
+		//グループ名候補リストを作成
+		let objGroupNameCandidateList = new Object();
+		let objPosePre = null;
 		for(let oneNormalName of normalKeys){
 			let oneName = g_objNormalizationNameList[oneNormalName];
 			let objPose = g_nm2O[oneName];
-			if(objPose.pIsGrouped){
-				continue;
-			}
 
 			//比較用にポーズ名を加工する
-			let compName = objModifyForCompareList[objPose.pNormalizationName];
+			let compName = objPose.pModifyForCompare;
 
-			if(myStartsWith(compName,oneCandidate)){
-				objPose.pIsGrouped = true;
+			if(objPosePre!=null){
+				//比較用にポーズ名を加工する
+				let compNamePre = objPosePre.pModifyForCompare;
 
-				let objPoseList = new Object();
-				objPoseList[oneName] = objPose.pName;
+				let groupName = compareName(compNamePre,compName,false);
+				if(groupName!=null){
+					groupName = groupName.trimEnd();
+					if(!(groupName in objGroupNameCandidateList)){
+						objGroupNameCandidateList[groupName] = null;
+					}
+				}
+			}
+			objPosePre = objPose;
+		}
 
-				//グループに属するファイルが存在する場合のみ処理を行う。
-				if(!(oneCandidate in objGroup)){
-					objGroup[oneCandidate] = makeNewGroup(objPoseList);
-				}else{
-					//既存であれば、ファイルリストをコピーする
-					fullNameMove(oneCandidate,null,false,objPoseList);
+		//候補を降順に並び替える（基本的に文字列長が長い順に処理したい）
+		let candidateKeys = Object.keys(objGroupNameCandidateList);
+		candidateKeys.sort(compareLowerCaseRev);
+
+		//厳密なグループ化
+		//※myStartsWithを利用
+		for(let oneCandidate of candidateKeys){
+			for(let oneNormalName of normalKeys){
+				let oneName = g_objNormalizationNameList[oneNormalName];
+				let objPose = g_nm2O[oneName];
+				if(objPose.pIsGrouped){
+					continue;
+				}
+
+				let compName = objPose.pModifyForCompare;
+
+				if(myStartsWith(compName,oneCandidate)){
+					objPose.pIsGrouped = true;
+
+					let objPoseList = new Object();
+					objPoseList[oneName] = objPose.pName;
+
+					//グループに属するファイルが存在する場合のみ処理を行う。
+					if(!(oneCandidate in objGroup)){
+						objGroup[oneCandidate] = makeNewGroup(objPoseList);
+					}else{
+						//既存であれば、ファイルリストをコピーする
+						fullNameMove(objGroup,oneCandidate,null,false,objPoseList);
+					}
 				}
 			}
 		}
-	}
-	//↑↓のループはまとめないこと
-	//単純なグループ化
-	//※～.startsWithを利用
-	for(let oneCandidate of candidateKeys){
-		for(let oneNormalName of normalKeys){
-			let oneName = g_objNormalizationNameList[oneNormalName];
-			let objPose = g_nm2O[oneName];
-			if(objPose.pIsGrouped){
-				continue;
-			}
+		//↑↓のループはまとめないこと
+		//単純なグループ化
+		//※～.startsWithを利用
+		for(let oneCandidate of candidateKeys){
+			for(let oneNormalName of normalKeys){
+				let oneName = g_objNormalizationNameList[oneNormalName];
+				let objPose = g_nm2O[oneName];
+				if(objPose.pIsGrouped){
+					continue;
+				}
 
-			//比較用にポーズ名を加工する
-			let compName = objModifyForCompareList[objPose.pNormalizationName];
+				let compName = objPose.pModifyForCompare;
 
-			if(compName.startsWith(oneCandidate)){
-				objPose.pIsGrouped = true;
+				if(compName.startsWith(oneCandidate)){
+					objPose.pIsGrouped = true;
 
-				let objPoseList = new Object();
-				objPoseList[oneName] = objPose.pName;
+					let objPoseList = new Object();
+					objPoseList[oneName] = objPose.pName;
 
-				//グループに属するファイルが存在する場合のみ処理を行う。
-				if(!(oneCandidate in objGroup)){
-					objGroup[oneCandidate] = makeNewGroup(objPoseList);
-				}else{
-					//既存であれば、ファイルリストをコピーする
-					fullNameMove(oneCandidate,null,false,objPoseList);
+					//グループに属するファイルが存在する場合のみ処理を行う。
+					if(!(oneCandidate in objGroup)){
+						objGroup[oneCandidate] = makeNewGroup(objPoseList);
+					}else{
+						//既存であれば、ファイルリストをコピーする
+						fullNameMove(objGroup,oneCandidate,null,false,objPoseList);
+					}
 				}
 			}
 		}
@@ -1538,84 +1627,93 @@ function groupingByName(){
 	//==============================
 	//グループ化されなかったものを追加
 	//==============================
-	for(let i in g_idx2O){
-		let objPose = g_idx2O[i];
+	LabelAddUngroupPoses:	{
+		for(let i in g_idx2O){
+			let objPose = g_idx2O[i];
 
-		if(objPose.pIsGrouped){
-			continue;
+			if(objPose.pIsGrouped){
+				continue;
+			}
+			objPose.pIsGrouped = true;
+			let poseName = objPose.pName;
+			let groupName = objPose.pNormalizationName;
+			//console.log('poseName['+poseName+']');
+			let oneGroup = (objGroup[groupName] = makeNewGroup(null));
+			oneGroup.pPoseList[poseName] = poseName;
 		}
-		objPose.pIsGrouped = true;
-		let poseName = objPose.pName;
-		let groupName = objPose.pNormalizationName;
-		//console.log('poseName['+poseName+']');
-		let oneGroup = (objGroup[groupName] = makeNewGroup(null));
-		oneGroup.pPoseList[poseName] = poseName;
 	}
 
 	//==============================
 	//グループ名の正規化
 	//==============================
-	for(let oneGroupName in objGroup){
-		//末尾の不要な文字列を削除する
-		let newGroupName = oneGroupName.replace(delLastNumericRegExp,'$1');
+	LabelNormalizationGroup:	{
+		for(let oneGroupName in objGroup){
+			//末尾の不要な文字列を削除する
+			let newGroupName = oneGroupName.replace(g_delLastNumericRegExp,'$1');
 
-		if(!(newGroupName in objGroup)){
-			//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
-			objGroup[newGroupName] = makeNewGroup(null);
-			fullNameMove(newGroupName,oneGroupName,true);
+			if(!(newGroupName in objGroup)){
+				//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
+				objGroup[newGroupName] = makeNewGroup(null);
+				fullNameMove(objGroup,newGroupName,oneGroupName,true);
+			}
 		}
 	}
 
-	let groupNamePre = null;
-	let groupKeys = Object.keys(objGroup);
 	//==============================
 	//まとめられるグループの対応①
 	//==============================
-	//	まるめ後の比較
-	//	末尾数字の差異などは、同じグループと判断する
-	groupKeys.sort();
-	for(let groupName of groupKeys){
-		if(groupNamePre!=null){
-			let mergeGroupName = compareName(groupNamePre,groupName,true);
-			if(mergeGroupName!=null){
-				//グループの統合を行う
-				//グループに属するファイルが存在する場合
-				if(!(mergeGroupName in objGroup)){
-					objGroup[mergeGroupName] = makeNewGroup(null);
-				}
-				//mergeGroupNameに情報を移動する
-				fullNameMove(mergeGroupName,groupNamePre,true);
-				fullNameMove(mergeGroupName,groupName,true);
+	LabelTogetherGroup01:	{
+		let groupNamePre = null;
+		let groupKeys = Object.keys(objGroup);
+		//	まるめ後の比較
+		//	末尾数字の差異などは、同じグループと判断する
+		groupKeys.sort();
+		for(let groupName of groupKeys){
+			if(groupNamePre!=null){
+				let mergeGroupName = compareName(groupNamePre,groupName,true);
+				if(mergeGroupName!=null){
+					//グループの統合を行う
+					//グループに属するファイルが存在する場合
+					if(!(mergeGroupName in objGroup)){
+						objGroup[mergeGroupName] = makeNewGroup(null);
+					}
+					//mergeGroupNameに情報を移動する
+					fullNameMove(objGroup,mergeGroupName,groupNamePre,true);
+					fullNameMove(objGroup,mergeGroupName,groupName,true);
 
-				groupNamePre = mergeGroupName;
+					groupNamePre = mergeGroupName;
+				}else{
+					//console.log('none groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
+					groupNamePre = groupName;
+				}
 			}else{
-				//console.log('none groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 				groupNamePre = groupName;
 			}
-		}else{
-			groupNamePre = groupName;
 		}
 	}
 
 	//==============================
 	//まとめられるグループの対応②
 	//==============================
-	//今のグループ名に、前のグループ名が含まれている場合
-	//前のグループに統合する
-	groupKeys = Object.keys(objGroup);
-	groupKeys.sort();
-	for(let groupName of groupKeys){
-		if(groupNamePre!=null){
-			if(myStartsWith(groupName,groupNamePre)){
+	LabelTogetherGroup02:	{
+		//今のグループ名に、前のグループ名が含まれている場合
+		//前のグループに統合する
+		let groupKeys = Object.keys(objGroup);
+		groupKeys.sort();
+		let groupNamePre = null;
+		for(let groupName of groupKeys){
+			if(groupNamePre!=null){
+				if(myStartsWith(groupName,groupNamePre)){
 
-				fullNameMove(groupNamePre,groupName,true);
+					fullNameMove(objGroup,groupNamePre,groupName,true);
 
-				groupName = groupNamePre;
-			}else{
-				//console.log('none2 groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
+					groupName = groupNamePre;
+				}else{
+					//console.log('none2 groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
+				}
 			}
+			groupNamePre = groupName;
 		}
-		groupNamePre = groupName;
 	}
 
 	//製作者のタグリスト
@@ -1626,63 +1724,65 @@ function groupingByName(){
 	//・グループに作者のclassNameを紐づける
 	//・同一グループに複数名の作者が混ざっている場合は
 	//	複数グループに分ける
-	for(let groupName in objGroup){
-		let oneGroup = objGroup[groupName];
+	LabelSplitGroupForCreator:{
+		for(let groupName in objGroup){
+			let oneGroup = objGroup[groupName];
 
-		//グループ内のポーズの製作者数（種類の数）
-		let objCreatorUniqCount = new Object();
-		let creatorCssTag = null;
+			//グループ内のポーズの製作者数（種類の数）
+			let objCreatorUniqCount = new Object();
+			let creatorCssTag = null;
 
-		//１つのグループ内の全ファイルをチェックする
-		for(let oneFile in oneGroup.pPoseList){
-			let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
+			//１つのグループ内の全ファイルをチェックする
+			for(let oneFile in oneGroup.pPoseList){
+				let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
 
-			let objCreator = objPose.pCreatorInfo;
-			creatorCssTag = objCreator.pCssTag;
-			if (!(creatorCssTag in objCreatorUniqCount)){
-				objCreatorUniqCount[creatorCssTag] = objCreator.pName;
-				if(Object.keys(objCreatorUniqCount).length>1){
-					break;
+				let objCreator = objPose.pCreatorInfo;
+				creatorCssTag = objCreator.pCssTag;
+				if (!(creatorCssTag in objCreatorUniqCount)){
+					objCreatorUniqCount[creatorCssTag] = objCreator.pName;
+					if(Object.keys(objCreatorUniqCount).length>1){
+						break;
+					}
 				}
 			}
-		}
-		if(Object.keys(objCreatorUniqCount).length<=1){
-			oneGroup.pCssTag = creatorCssTag;
-			let oneCreatorTag = objCreatorTagList[creatorCssTag] = new Object();
-			oneCreatorTag.pGroupNameList = new Object();
-			oneCreatorTag.pHigerGroupNameList = null;	//上位グループ名と上位グループ番号が入る
-			//グループ内の製作者が一人ならここで終わり
-			continue;
-		}
-
-		//グループ内の製作者が複数いる場合、製作者ごとに分ける
-		//・全てのグループ名を「グループ名＋(creator:製作者名)」とし
-		//	元のグループ名を削除する
-		let objUniqCssTag = new Object();
-		let objPoseListOrg = oneGroup.pPoseList;
-		//１つのグループ内の全ファイルをチェックする
-		for(let oneFile in oneGroup.pPoseList){
-			let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
-			let objCreator = objPose.pCreatorInfo;
-			let creatorCssTag = objCreator.pCssTag;
-
-			let newGroupName = groupName + ' (creator : ' + objCreator.pName + ')';
-			if (!(creatorCssTag in objUniqCssTag)){
-				objUniqCssTag[creatorCssTag] = true;	//値はなんでもよい
-				objGroup[newGroupName] = makeNewGroup(null);
+			if(Object.keys(objCreatorUniqCount).length<=1){
+				oneGroup.pCssTag = creatorCssTag;
 				let oneCreatorTag = objCreatorTagList[creatorCssTag] = new Object();
 				oneCreatorTag.pGroupNameList = new Object();
 				oneCreatorTag.pHigerGroupNameList = null;	//上位グループ名と上位グループ番号が入る
+				//グループ内の製作者が一人ならここで終わり
+				continue;
 			}
-			objGroup[newGroupName].pCssTag = creatorCssTag;
-			//新しいグループにファイル名を追加する
-			let objPoseList = objGroup[newGroupName].pPoseList;
-			objPoseList[oneFile] = objPose.pName;
 
-			//元のグループからファイル情報を削除する
-			delete objPoseListOrg[oneFile];
+			//グループ内の製作者が複数いる場合、製作者ごとに分ける
+			//・全てのグループ名を「グループ名＋(creator:製作者名)」とし
+			//	元のグループ名を削除する
+			let objUniqCssTag = new Object();
+			let objPoseListOrg = oneGroup.pPoseList;
+			//１つのグループ内の全ファイルをチェックする
+			for(let oneFile in oneGroup.pPoseList){
+				let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
+				let objCreator = objPose.pCreatorInfo;
+				let creatorCssTag = objCreator.pCssTag;
+
+				let newGroupName = groupName + ' (creator : ' + objCreator.pName + ')';
+				if (!(creatorCssTag in objUniqCssTag)){
+					objUniqCssTag[creatorCssTag] = true;	//値はなんでもよい
+					objGroup[newGroupName] = makeNewGroup(null);
+					let oneCreatorTag = objCreatorTagList[creatorCssTag] = new Object();
+					oneCreatorTag.pGroupNameList = new Object();
+					oneCreatorTag.pHigerGroupNameList = null;	//上位グループ名と上位グループ番号が入る
+				}
+				objGroup[newGroupName].pCssTag = creatorCssTag;
+				//新しいグループにファイル名を追加する
+				let objPoseList = objGroup[newGroupName].pPoseList;
+				objPoseList[oneFile] = objPose.pName;
+
+				//元のグループからファイル情報を削除する
+				delete objPoseListOrg[oneFile];
+			}
+			delete objGroup[groupName];
 		}
-		delete objGroup[groupName];
 	}
 
 	//==============================
@@ -1693,130 +1793,214 @@ function groupingByName(){
 
 	//グループ情報を作成
 	//大文字・小文字を区別せずソートした順に処理を行う
-	groupKeys = Object.keys(objGroup);
-	groupKeys.sort(compareLowerCase);
-	let higherGroupSeq = 0;
-	//全製作者
-	for(let oneCreatorTag in objCreatorTagList){
-		//製作者単位で処理を行う
-		let oneCreatorGroup = objCreatorTagList[oneCreatorTag];
-		//製作者ごとにグループ名のリストを作成する
-		//	名前順に処理をする
-		for(let groupName of groupKeys){
-			let oneGroup = objGroup[groupName];
-			if(oneGroup.pCssTag == oneCreatorTag){
-				oneCreatorGroup.pGroupNameList[groupName] = groupName;
+	LabelMakeHigherGroup: {
+		let groupKeys = Object.keys(objGroup);
+		groupKeys.sort(compareLowerCase);
+
+		let higherGroupSeq = 0;
+		//全製作者
+		for(let oneCreatorTag in objCreatorTagList){
+			//製作者単位で処理を行う
+			let oneCreatorGroup = objCreatorTagList[oneCreatorTag];
+			//製作者ごとにグループ名のリストを作成する
+			//	名前順に処理をする
+			for(let groupName of groupKeys){
+				let oneGroup = objGroup[groupName];
+				if(oneGroup.pCssTag == oneCreatorTag){
+					oneCreatorGroup.pGroupNameList[groupName] = groupName;
+				}
 			}
-		}
 
-		if(Object.keys(oneCreatorGroup.pGroupNameList).length<=1){
-			//その製作者のグループが１つしかない場合、後続を処理しない
-			continue;
-		}
+			if(Object.keys(oneCreatorGroup.pGroupNameList).length<=1){
+				//その製作者のグループが１つしかない場合、後続を処理しない
+				continue;
+			}
 
-		//グループ名の共通部分をまとめる
-		//	二周回す
-		//	一周目：グループ名の中から共通する名前を探す
-		//	二周目：↑で作成したグループ名の中からさらに共通する名前を探す
-		let groupNamePre = null;
-		for(let i=0;i<2;++i){
-			let newGroupList = new Object();
+			//グループ名の共通部分をまとめる
+			//	二周回す
+			//	一周目：グループ名の中から共通する名前を探す
+			//	二周目：↑で作成したグループ名の中からさらに共通する名前を探す
+			LabelMakeHigherGroup01:{
+				let newGroupList = new Object();
+				let srcGroupList = oneCreatorGroup.pGroupNameList;
 
-			groupNamePre = null;
-			let srcGroupList = (i==0)?oneCreatorGroup.pGroupNameList:oneCreatorGroup.pHigerGroupNameList
-			for(let groupName in srcGroupList){
-				let sameName = null;
-				if(groupName.match(/^\d./)){
-					//１桁目が数字の場合、数字グループを作成する
-					sameName = g_numericGroupName;
-				}else{
-					if(groupNamePre != null){
-						sameName = compareName(groupNamePre,groupName,false);
-						if(sameName!=null){
-							sameName = sameName.replace(delLastNumericRegExp,'$1');
+				let groupNamePre = null;
+				for(let groupName in srcGroupList){
+					let sameName = null;
+					if(groupName.match(/^\d./)){
+						//１桁目が数字の場合、数字グループを作成する
+						sameName = g_numericGroupName;
+					}else{
+						if(groupNamePre != null){
+							let isWords		= !(groupName.match(wordSeparator02RegExp)==null);
+							let isWordsPre	= !(groupNamePre.match(wordSeparator02RegExp)==null);
+
+							if(isWords == isWordsPre){
+								if(isWords){
+									sameName = makeMergeWord(groupNamePre,groupName);
+								}else{
+									sameName = compareName(groupNamePre,groupName,false);
+									if(sameName!=null){
+										sameName = sameName.replace(g_delLastNumericRegExp,'$1');
+									}
+								}
+							}
 						}
 					}
-				}
-				if(sameName!=null){
-					if(!(sameName in newGroupList)){
-						//上位グループ名と連番を採番
-						newGroupList[sameName] = higherGroupSeq++;
+					if(sameName!=null){
+						if(sameName!=null){
+							if(!(sameName in newGroupList)){
+								//上位グループ名と連番を採番
+								newGroupList[sameName] = higherGroupSeq++;
+							}
+						}
 					}
-				}
 
-				groupNamePre = groupName;
-			}
-			let groupListLen = Object.keys(newGroupList).length;
-			if(groupListLen>0){
-				oneCreatorGroup.pHigerGroupNameList = newGroupList;
-				if(groupListLen==1){
-					break;
+					groupNamePre = groupName;
+				}
+				let groupListLen = Object.keys(newGroupList).length;
+				if(groupListLen>0){
+					oneCreatorGroup.pHigerGroupNameList = newGroupList;
 				}
 			}
-		}
 
-		if(oneCreatorGroup.pHigerGroupNameList == null){
-			//上位グループができなかった場合
-			continue;
-		}
+			/*↓の処理がいまいち*/
+			LabelMakeHigherGroup02:{
+				let srcGroupList = oneCreatorGroup.pHigerGroupNameList;
 
-		//全てのグループに、属している上位グループの情報を設定する
-		//※できるだけ長い名前に一致するように降順で処理する
-		let higherCandidateKeys = Object.keys(oneCreatorGroup.pHigerGroupNameList);
-		higherCandidateKeys.sort(compareLowerCaseRev);
-
-		for(let higherGroupName of higherCandidateKeys){
-			let higherGroupId = 'idHigerGroup' + oneCreatorGroup.pHigerGroupNameList[higherGroupName];
-
-			//全ての上位グループ名に対して処理を行う
-			for(let groupName in oneCreatorGroup.pGroupNameList){
-				let oneGroup = objGroup[groupName];
-
-				if(oneGroup.pHigherGroupName!=null){
-					//すでに上位が決まっている場合は、処理しない
-					continue;
+				//バックアップする
+				let newGroupList = new Object();
+				for (let baseName in srcGroupList){
+					if(baseName.match(/^\d./)){
+						continue;
+					}
+					newGroupList[baseName] = srcGroupList[baseName];
 				}
 
-				let doSet = false;
-				if(higherGroupName == g_numericGroupName){
-					//数値グループの場合
-					if(groupName.match(/^\d/)){
-						//グループ名が数字から始まっている場合
+				for (let baseName in srcGroupList){
+					if(baseName.match(/^\d./)){
+						continue;
+					}
+					for (let targetName in srcGroupList){
+						if(baseName!=targetName){
+
+							let mergeName = compareName(baseName,targetName,false);
+							if(mergeName!=null){
+								if(baseName in newGroupList){
+									delete newGroupList[baseName];
+								}
+								if(targetName in newGroupList){
+									delete newGroupList[targetName];
+								}
+
+								if(!(mergeName in newGroupList)){
+									//上位グループ名と連番を採番
+									newGroupList[mergeName] = higherGroupSeq++;
+								}
+							}
+						}
+					}
+
+//					let isWordsBase		= !(baseName.match(wordSeparator02RegExp)==null);
+//					for (let targetName in srcGroupList){
+//						if(baseName!=targetName){
+//							let isWordsTarget	= !(targetName.match(wordSeparator02RegExp)==null);
+//
+//							let mergeName = null;
+//							if(isWordsBase == isWordsTarget){
+//								if(isWordsBase){
+//									mergeName = makeMergeWord(baseName,targetName);
+//								}else{
+//									mergeName = compareName(baseName,targetName,false);
+//								}
+//							}else if(isWordsBase != isWordsTarget){
+//								//mergeName = baseName;
+//							}
+//
+//							if(mergeName!=null){
+//								if(!(mergeName in newGroupList)){
+//									//上位グループ名と連番を採番
+//									newGroupList[mergeName] = higherGroupSeq++;
+//								}
+//							}
+//						}
+//					}
+				}
+				let groupListLen = Object.keys(newGroupList).length;
+				if(groupListLen>0){
+					oneCreatorGroup.pHigerGroupNameList = newGroupList;
+				}
+			}
+
+
+
+
+			if(oneCreatorGroup.pHigerGroupNameList == null){
+				//上位グループができなかった場合
+				continue;
+			}
+
+			//全てのグループに、属している上位グループの情報を設定する
+			//※できるだけ長い名前に一致するように降順で処理する
+			let higherCandidateKeys = Object.keys(oneCreatorGroup.pHigerGroupNameList);
+			higherCandidateKeys.sort(compareLowerCaseRev);
+
+			for(let higherGroupName of higherCandidateKeys){
+				let higherGroupId = 'idHigerGroup' + oneCreatorGroup.pHigerGroupNameList[higherGroupName];
+
+				//全ての上位グループ名に対して処理を行う
+				for(let groupName in oneCreatorGroup.pGroupNameList){
+					let oneGroup = objGroup[groupName];
+
+					if(oneGroup.pHigherGroupName!=null){
+						//すでに上位が決まっている場合は、処理しない
+						continue;
+					}
+
+					let doSet = false;
+					if(higherGroupName == g_numericGroupName){
+						//数値グループの場合
+						if(groupName.match(/^\d/)){
+							//グループ名が数字から始まっている場合
+							doSet = true;
+						}
+					}else if(groupName.startsWith(higherGroupName)){
+						//グループ名が上位グループに属している場合
 						doSet = true;
 					}
-				}else if(groupName.startsWith(higherGroupName)){
-					//グループ名が上位グループに属している場合
-					doSet = true;
-				}
 
-				if(doSet){
-					if(higherGroupName in g_systemGroupList){
-						//システムグループの場合
-						if(g_systemGroupList[higherGroupName]==null){
-							//最初に検出したグループ情報を設定する
-							g_systemGroupList[higherGroupName] = oneGroup;
+					if(doSet){
+//console.log('  set higherGroupName['+higherGroupName+']groupName['+groupName+']');
+						if(higherGroupName in g_systemGroupList){
+							//システムグループの場合
+							if(g_systemGroupList[higherGroupName]==null){
+								//最初に検出したグループ情報を設定する
+								g_systemGroupList[higherGroupName] = oneGroup;
+							}
 						}
-					}
 
-					oneGroup.pHigherGroupId = higherGroupId;
-					oneGroup.pHigherGroupInnerId = 'list' + higherGroupId;
-					oneGroup.pHigherGroupName = higherGroupName;
-					oneGroup.pLevel ++;
+						oneGroup.pHigherGroupId = higherGroupId;
+						oneGroup.pHigherGroupInnerId = 'list' + higherGroupId;
+						oneGroup.pHigherGroupName = higherGroupName;
+						oneGroup.pLevel ++;
+					}else{
+//console.log('noset higherGroupName['+higherGroupName+']groupName['+groupName+']');
+					}
 				}
 			}
+
+			//todo:上位グループ配下の場合
+			//複数グループがある場合に限り
+			//単語単位の共通部分を削除してpDisplayNameを設定する
+			//  'CHICQRO: Erotic Dreams - Bento Pose Pack 01 - Pose'
+			//  'CHICQRO: Submissive Female - Bento Pose Pack 01 - Pose'
+			//	↓
+			//  'Erotic Dreams'
+			//  'Submissive Female'
+			//
+			//ただし、pDisplayNameはユニークであること
+
 		}
-
-		//todo:上位グループ配下の場合
-		//複数グループがある場合に限り
-		//単語単位の共通部分を削除してpDisplayNameを設定する
-		//  'CHICQRO: Erotic Dreams - Bento Pose Pack 01 - Pose'
-		//  'CHICQRO: Submissive Female - Bento Pose Pack 01 - Pose'
-		//	↓
-		//  'Erotic Dreams'
-		//  'Submissive Female'
-		//
-		//ただし、pDisplayNameはユニークであること
-
 	}
 
 	//==============================
@@ -1825,28 +2009,30 @@ function groupingByName(){
 	//・g_groupNamesを作成
 	//・g_nm2OのpGroupInfoに反映
 	//
-	g_groupNames = new Object();
+	LabelSetGroupInfomation:	{
+		g_groupNames = new Object();
 
-	//大文字・小文字を区別せずソートした順に処理を行う
-	groupKeys = Object.keys(objGroup);
-	groupKeys.sort(compareLowerCase);
-	//console.log(groupKeys);
-	let groupSeq = 0;
-	for(let groupName of groupKeys){
-		let oneGroup = objGroup[groupName];
-		let onePoseList = oneGroup.pPoseList;
+		//大文字・小文字を区別せずソートした順に処理を行う
+		let groupKeys = Object.keys(objGroup);
+		groupKeys.sort(compareLowerCase);
+		//console.log(groupKeys);
+		let groupSeq = 0;
+		for(let groupName of groupKeys){
+			let oneGroup = objGroup[groupName];
+			let onePoseList = oneGroup.pPoseList;
 
-		oneGroup.pGroupId = 'idGroup' + groupSeq++;
-		oneGroup.pGroupInnerId = 'list' + oneGroup.pGroupId;
-		oneGroup.pMemCount = Object.keys(onePoseList).length;
-		oneGroup.pGroupName = groupName;
+			oneGroup.pGroupId = 'idGroup' + groupSeq++;
+			oneGroup.pGroupInnerId = 'list' + oneGroup.pGroupId;
+			oneGroup.pMemCount = Object.keys(onePoseList).length;
+			oneGroup.pGroupName = groupName;
 
-		//グループ情報の設定
-		g_groupNames[groupName] = oneGroup;
+			//グループ情報の設定
+			g_groupNames[groupName] = oneGroup;
 
-		//グループメンバーにも情報を設定する
-		for(let oneFile in onePoseList){
-			g_nm2O[oneFile].pGroupInfo = oneGroup;
+			//グループメンバーにも情報を設定する
+			for(let oneFile in onePoseList){
+				g_nm2O[oneFile].pGroupInfo = oneGroup;
+			}
 		}
 	}
 
@@ -1938,7 +2124,7 @@ function makeBaseHtml(){
 		let objLabel = document.createElement('label');
 		objLabel.htmlFor = objCheckBox.id;
 		objLabel.className = argLabelClassName;
-		objLabel.innerHTML = argLabelText.replace(' ','&nbsp;');
+		objLabel.innerHTML = argLabelText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
 
 		argAppendObject.appendChild(objCheckBox);
 		argAppendObject.appendChild(objLabel);
@@ -1959,7 +2145,7 @@ function makeBaseHtml(){
 			objLegend.className = argLabelClassName;
 		}
 		if(argLabelText!=null){
-			objLegend.innerHTML = argLabelText.replace(' ','&nbsp;');
+			objLegend.innerHTML = argLabelText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
 		}
 		if(argObjLabel!=null){
 			objLegend.appendChild(argObjLabel);
@@ -2055,7 +2241,7 @@ function makeBaseHtml(){
 
 	//ポーズ追加用のリスト
 	g_poseTreeList = addElmDiv(null,'dPoseTreeList');
-	g_poseFlatList = addElmDiv(null,'dPoseFlatList');
+	g_poseFlatList = addElmDiv(null,g_IdFlatList);
 
 	let docBody = document.body;
 	docBody.appendChild(g_objMain);
@@ -2080,7 +2266,7 @@ function searchPose(){
 	let displayString;
 	for(let oneName in g_nm2O){
 		let objPose = g_nm2O[oneName];
-		if (objPose.pNameLower.indexOf(serchText) != -1) {
+		if (objPose.pNameForSearch.indexOf(serchText) != -1) {
 			objPose.pElmFlatScrollTarget.classList.remove('csHide');
 		}else{
 			objPose.pElmFlatScrollTarget.classList.add('csHide')
@@ -2119,7 +2305,18 @@ function receiveWait(){
 		//==============================
 		//名前の正規化
 		//==============================
-		g_objNormalizationNameList =  makeNormalizationNameList();
+		for(let oneUuid in g_uuid2O){
+			let objCreator = g_uuid2O[oneUuid];
+			objCreator.pNormalizationNameList = makeNormalizationNameList(Object.keys(objCreator.pPoseNameList));
+
+			objCreator.pNormalizationNameSortedKeys = Object.keys(objCreator.pNormalizationNameList);
+			objCreator.pNormalizationNameSortedKeys.sort();
+		}
+
+		//==============================
+		//名前の正規化
+		//==============================
+		g_objNormalizationNameList =  makeNormalizationNameList(Object.keys(g_nm2O));
 
 		//名前によるグルーピング
 		groupingByName();
