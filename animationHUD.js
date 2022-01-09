@@ -13,7 +13,7 @@ const g_delPriorityRegExp = /^(.*[a-z][^a-z]+)[ ]*(P|Prio|Priority|V|Version)[ ]
 //	'STUN Anim - Malvene 1'
 //		↓
 //	'STUN Anim - Malvene'
-const g_delLastNumericRegExp = /^(.*[a-z])\b([^a-z]+)$/i;
+const g_delLastNumericRegExp = /^(.*[a-z])([^a-z]+)$/i;
 
 const g_sameLimitLength = 2;
 
@@ -88,8 +88,7 @@ g_systemGroupList[g_numericGroupName] = null;
 const g_IdFlatList = 'dPoseFlatList';
 const g_IdTreeList = 'dPoseTreeList';
 
-
-
+const g_TagGroupTag = 'csGroupTag';
 
 
 
@@ -254,16 +253,16 @@ function playCtrl(){
 function changeCreator(){
 	const styleId = 'cssCreator';
 	delStyleSheet(styleId);
-	if(g_selCreator.value == 'all'){return;}
-
-	let strCss = '';
-	for(let oneUuid in g_uuid2O){
-		let cssTag = g_uuid2O[oneUuid].pCssTag;
-		let displayString = (g_selCreator.value==cssTag) ? 'block' : 'none';
-		strCss += '.' + cssTag + ' {display: ' + displayString + ';}';
+	if(g_selCreator.value == 'all'){
+		//削除を実行したら処理を終わる
+		return;
 	}
 
-	addStyleElement(styleId,strCss);
+	//全体表示はOFFにする
+	//製作者指定されているものをONにする
+	addStyleElement(styleId,  '.' + g_TagGroupTag		+ '{display:none;}'
+							+ '.' + g_selCreator.value	+ '{display:block;}'
+							);
 }
 
 function changeDisplayMode(){
@@ -478,8 +477,8 @@ function makePoseInfo(argJsonData){
 		for(let i=0,len=creatorListPsv.length;i<len;i+=2){
 			let creatorName = unescape(creatorListPsv[i]);
 			let creatorUuid = unescape(creatorListPsv[i+1]);
-			//console.log(creatorUuid+':'+creatorName);
 			let objCreator = g_uuid2O[creatorUuid];
+			//console.log(creatorUuid+':'+creatorName+':'+objCreator);
 			objCreator.pName = creatorName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
 		}
 
@@ -531,6 +530,7 @@ function makePoseInfo(argJsonData){
 		let returnPoseName = argPoseName;
 		//プライオリティっぽいものを消す
 		returnPoseName = returnPoseName.replace(g_delPriorityRegExp,'$1');
+
 		//数字っぽいものを消す
 		returnPoseName = returnPoseName.replace(g_delLastNumericRegExp,'$1');
 		return returnPoseName;
@@ -545,22 +545,11 @@ function makePoseInfo(argJsonData){
 			//製作者用cssタグの連番（0～
 			let creatorSeq = Object.keys(g_uuid2O).length;
 
+			//console.log('set g_uuid2O['+argCreatorUuid+']');
 			g_uuid2O[argCreatorUuid] = {
 				 pNo : creatorSeq
 				,pCssTag : 'css_creator_' + creatorSeq
 				,pName : null		//nullの場合、名前要求をする
-
-									//ポーズ情報
-				,pPoseNameList : new Object()
-									//クリエイターが同じポーズ名のリストを作成する
-									//pPoseNameList[ポーズ名] = ポーズオブジェクト
-				,pPoseCount : 0		//↑の個数
-
-									//↓正規化した名前のリスト（キーは正規化した名前、アイテムは素の名前）
-				,pNormalizationNameList : null
-				,pNormalizationNameSortedKeys : null
-									//正規化した名前のキーリスト（ソート済）
-
 			}
 		}
 		let objCreator = g_uuid2O[argCreatorUuid];
@@ -603,13 +592,10 @@ function makePoseInfo(argJsonData){
 				,pCreatorInfo : objCreator
 			}
 
-		objCreator.pPoseNameList[argPoseName] = objPose;
-		objCreator.pPoseCount ++;
 		return objPose;
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-
 	//ポーズリスト（'|'区切り）を分割
 	let poseListPsv = (argJsonData.poseList).split('|');
 
@@ -623,16 +609,61 @@ function makePoseInfo(argJsonData){
 			continue;
 		}
 
-		++addPoseCount;
-		updateProgress();
-
 		let objPose = makeObjPose(psvIndex,psvName,psvUuid);
 
 		g_nm2O[objPose.pName] = objPose;
 		g_idx2O[objPose.pIndexNo] = objPose;
+
+		++addPoseCount;
+		updateProgress();
 	}
+
+
+//	labeltest:if(false) {
+//	let index = 0;
+//	let len = poseListPsv.length;
+//	//プログレスバーを進めるために、setTimeoutを利用
+//	setTimeout(	function setOnePoseInfo(){
+//console.log(index);
+//					let psvIndex = poseListPsv[index];	//in worldのcontentsの連番（０～
+//					let psvName = poseListPsv[index+1];	//ポーズ名
+//					let psvUuid = poseListPsv[index+2];	//製作者のUuid
+//
+//					if (!( psvIndex in g_idx2O )){
+//						//同じデータがきたら処理しない
+//						//※通常、ありえない
+//
+//						let objPose = makeObjPose(psvIndex,unescape(psvName),psvUuid);
+//
+//						g_nm2O[objPose.pName] = objPose;
+//						g_idx2O[objPose.pIndexNo] = objPose;
+//
+//						++addPoseCount;
+//						updateProgress();
+//console.log('set psvIndex['+psvIndex+']psvName['+psvName+']psvUuid['+psvUuid+']');
+//console.log('set pIndexNo['+objPose.pIndexNo+']pName['+objPose.pName+']pUuid['+objPose.pUuid+']');
+//					}
+//
+//					index += 3;
+//					if(index<len){
+//						setTimeout(setOnePoseInfo,0);
+//					}
+//				}
+//				,0);
+//	}
 	//追加したポーズ数を返す
 	return addPoseCount;
+}
+
+//プログレスバー設定
+function updateProgress(argTotalCounter=null){
+	if(argTotalCounter!=null){
+		g_progressValue = 0;
+		g_progressBar.max = argTotalCounter;
+		g_progressBar.value = g_progressValue;
+	}else{
+		++g_progressValue;
+	}
 }
 
 //数値をゼロ詰め数に変換する
@@ -760,6 +791,7 @@ function makeUI(){
 		let innerId = argObjGroup.pGroupInnerId;
 		let groupName = argObjGroup.pGroupName;
 		let doAddGroupLabel = false;
+		let cssTag = argObjGroup.pCssTag;
 		if(argIsHighGroup){
 			outerCssTag = 'csHigherGroupWaku';
 			outerLabelCssTag = 'csHigherGroupLbl';
@@ -767,6 +799,7 @@ function makeUI(){
 			innerId = argObjGroup.pHigherGroupInnerId;
 			groupName = argObjGroup.pHigherGroupName;
 			doAddGroupLabel = true;
+			cssTag = argObjGroup.pHigherCssTag;
 		}else{
 			if(argObjGroup.pMemCount>1){
 				doAddGroupLabel = true;
@@ -784,7 +817,7 @@ function makeUI(){
 			//グループ名を格納する
 			let objOuterWaku = document.createElement('div');
 			objOuterWaku.id = outerId;
-			objOuterWaku.className = outerCssTag + ' ' + argObjGroup.pCssTag;
+			objOuterWaku.className = outerCssTag + ' ' + g_TagGroupTag + ' ' + cssTag;
 
 			if(doAddGroupLabel){
 
@@ -841,7 +874,7 @@ function makeUI(){
 		let objPose = g_idx2O[i];
 
 		let strClassName = 'csPoseLbl';
-		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName,true);
+		let objWaku = makePartsPoseName(objPose,g_TagGroupTag + ' ' + objPose.pCreatorInfo.pCssTag,strClassName,true);
 		objPose.pElmFlatScrollTarget = objWaku;
 		g_poseFlatList.appendChild(objWaku);
 	}
@@ -909,7 +942,7 @@ function makeUI(){
 		//console.log(objPose.pName);
 		let strGroupLbl = (objPose.pGroupInfo.pMemCount==1)?'csNoGroupLbl' + objPose.pGroupInfo.pLevel:'csInGroupLbl'
 		let strClassName = 'csPoseLbl '+ strGroupLbl;
-		let objWaku = makePartsPoseName(objPose,objPose.pCreatorInfo.pCssTag,strClassName);
+		let objWaku = makePartsPoseName(objPose,g_TagGroupTag + ' ' + objPose.pCreatorInfo.pCssTag,strClassName);
 		objPose.pElmScrollTarget = objWaku;
 
 		if(objPose.pIsParent){
@@ -1327,6 +1360,7 @@ function groupingByName(){
 			,pHigherGroupName:null
 			,pHigherGroupId:null
 			,pHigherGroupInnerId:null
+			,pHigherCssTag:null
 			};
 	}
 
@@ -1352,46 +1386,108 @@ function groupingByName(){
 		}
 	}
 
+	//語を区切る
+	function separateSnakeCamel(argString,argWordSeparator=wordSeparatorForGroupRegExp){
+		function isNotEmptyItem(element) {
+			if ( element === '' || element === undefined ) {
+				return false;
+			}
+			return true;
+		}
+
+		let objReturn = {
+				 pIsWord:false
+				,pArrayWords:[argString]	//配列として設定
+			}
+
+		let isSeparateWord = null;
+		if(argString.match(wordSeparatorForGroupRegExp)){
+			isSeparateWord = true;
+			//通常の単語区切り
+			objReturn.pIsWord = true;
+			objReturn.pArrayWords = argString.split(wordSeparatorForGroupRegExp);
+		}else if((argString.match(/[a-z]/))&&(argString.match(/[A-Z]/))){
+			isSeparateWord = false;
+			objReturn.pIsWord = true;
+			objReturn.pArrayWords = argString.split(/(^[a-z]+)|([A-Z][a-z]+)/).filter( isNotEmptyItem );
+			//JavaScriptでキャメルケースを単語に分割
+			//https://easyramble.com/split-camelcase-word-with-javascript.html
+		}
+
+		if(objReturn.pIsWord){
+			//定冠詞を分離させない
+			if(objReturn.pArrayWords[0].match(/^(The|la|le)$/i)){
+				let len = objReturn.pArrayWords.length;
+				let lenShrink = 0;
+				if(isSeparateWord){
+					if(len>=2){
+						lenShrink = 2;
+					}
+				}else{
+					if(len>=1){
+						lenShrink = 1;
+					}
+				}
+				//console.log('A:['+objReturn.pArrayWords+']');
+				if(lenShrink>0){
+					objReturn.pArrayWords[0] = objReturn.pArrayWords.slice(0,lenShrink+1).join('');
+					objReturn.pArrayWords.splice(1,lenShrink);
+				}
+				//console.log('B:['+objReturn.pArrayWords+']');
+			}
+		}
+
+		return objReturn;
+	}
+
 	//２つの文字列の比較
 	//	一致しなければnull
 	//	一致する箇所があれば、一致部分のみを返す
-	function compareName(argPoseA,argPoseB,argIsMarume=false){
+	function compareName(argPoseA,argPoseB,argIsMarume=false,argWordSeparator=wordSeparatorForGroupRegExp){
 		if(argPoseA==argPoseB){
 			return argPoseA;	//２つの文字列は絶対異なるが念のため
 		}
 		let retString = '';
 		let sameLen = 0;
 
-		//数値要素だけの文字列で
-		//単語区切りができそうなら、単語区切りで比較する。
-		//※以下を別のグループと認識できるようにするため
-		//	'151.1'
-		//	'159.1.1'
+		let isWordSeparate = false;
+
 		let isSAPA = false;
 		if(argPoseA.match(g_allNumericRegExp) && argPoseB.match(g_allNumericRegExp)){
-			if(argPoseA.match(wordSeparatorForGroupRegExp)&& argPoseB.match(wordSeparatorForGroupRegExp)){
-				isSAPA = true;
-				let arrayA = argPoseA.split(wordSeparatorForGroupRegExp);
-				let arrayB = argPoseB.split(wordSeparatorForGroupRegExp);
+			//数値要素だけの文字列で
+			//単語区切りができそうなら、単語区切りで比較する。
+			//※以下を別のグループと認識できるようにするため
+			//	'151.1'
+			//	'159.1.1'
+			isSAPA = true;
+		}
 
-				let maxLen = Math.min(arrayA.length,arrayB.length);
-				for(let i=0;i<maxLen;++i){
-					let wordA = arrayA[i];
-					let wordB = arrayB[i];
-					if(wordA == wordB){
-						//一致する最長の長さを設定
-						retString += wordA;
-						sameLen = retString.length;
-					}else{
-						break;
-					}
+		let objSeparateA = separateSnakeCamel(argPoseA,argWordSeparator);
+		let objSeparateB = separateSnakeCamel(argPoseB,argWordSeparator);
+
+		let isWordA = objSeparateA.pIsWord;
+		let isWordB = objSeparateB.pIsWord;
+
+		if(isSAPA || (isWordA && isWordB)){
+			isWordSeparate = true;
+			let arrayA = objSeparateA.pArrayWords;
+			let arrayB = objSeparateB.pArrayWords;
+
+			let maxLen = Math.min(arrayA.length,arrayB.length);
+			for(let i=0;i<maxLen;++i){
+				let wordA = arrayA[i];
+				let wordB = arrayB[i];
+				if(wordA == wordB){
+					//一致する最長の長さを設定
+					retString += wordA;
+					sameLen = retString.length;
+				}else{
+					break;
 				}
-			}else{
-				isSAPA = true;
 			}
 		}
-		//console.log('isSAPA:'+isSAPA+'/argPoseA['+argPoseA+']/argPoseB['+argPoseB+']');
-		if(! isSAPA){
+
+		if(! isWordSeparate){
 			//２つの文字列の共通部分を取得する
 			let maxLen = Math.min(argPoseA.length,argPoseB.length);
 			for(let len=g_sameLimitLength;len<=maxLen;++len){
@@ -1450,20 +1546,16 @@ function groupingByName(){
 	const wordSeparator02RegExp = /([^a-z0-9])/i;
 	//２つの文字列の共通部分を抜き出す
 	//単語単位で文字の先頭から一致する部分を抜き出す
-	function makeMergeWord(argGroupName01,argGroupName02){
-		//単語単位に区切る
-		let array01 = argGroupName01.split(wordSeparator02RegExp);
-		let array02 = argGroupName02.split(wordSeparator02RegExp);
-
-		let len01 = array01.length;
-		let len02 = array02.length;
+	function makeMergeWord(argArrayGroupName01,argArrayGroupName02){
+		let len01 = argArrayGroupName01.length;
+		let len02 = argArrayGroupName02.length;
 
 		let maxLen = Math.min(len01,len02);
 
 		let matchCount = 0;	//一致した項目数
 		//先頭方向から不一致の単語にあたるまで処理を行う
 		for(let i=0;i<maxLen;++i){
-			if(array01[i]==array02[i]){
+			if(argArrayGroupName01[i]==argArrayGroupName02[i]){
 				++matchCount;
 			}else{
 				break;
@@ -1474,7 +1566,7 @@ function groupingByName(){
 			return null;
 		}
 
-		let arrayMerge = array01.slice(0,matchCount);
+		let arrayMerge = argArrayGroupName01.slice(0,matchCount);
 		for(i=arrayMerge.length-1;i>=0;--i){
 			if(arrayMerge[i].match(wordSeparator02RegExp)){
 				//終端が区切り文字なら削除する
@@ -1492,52 +1584,19 @@ function groupingByName(){
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-
-	//全製作者を対象に処理を行う
-	for(let oneUuid in g_uuid2O){
-		let objCreator = g_uuid2O[oneUuid];
-		if(objCreator.pPoseCount<=0){
-			continue;
-		}
-
-		//製作者単位で処理を行う。
-		let sortedKeys = objCreator.pNormalizationNameSortedKeys;
-
-		/*グループ名候補の作成*/
-		LabelMakeGroupCandidateByWord:{
-			let objGroupNameCandidateListByWords = new Object();
-			let objGroupNameCandidateListByString = new Object();
-
-			let onePosePre = null;
-			//製作者内の全ポーズをチェックする
-			for(let oneNormalName of sortedKeys){
-				let oneName = objCreator.pNormalizationNameList[oneNormalName];
-				let onePose = objCreator.pPoseNameList[oneName];
-				//console.log(objCreator.pName + ':' + oneNormalName + ':' + onePose.pName + ':' + objCreator.pPoseCount);
-
-				if(onePosePre != null){
-				}
-				onePosePre = onePose;
-			}
-		}
-	}
-
-	//==============================
-	//正規化した名前のソート
-	//==============================
-	//空白の数などで並びが変わってしまうため
-	let normalKeys = Object.keys(g_objNormalizationNameList);
-	normalKeys.sort();
-
 	//==============================
 	//上の行・下の行での比較を行う。
 	//==============================
-	//同一製作者かどうかは問わない
-	//※todo:この時点で同一製作者単位で処理を行ってもよかったかもしれない。
-
 	LabelComparePose: {
+		console.log('LabelComparePose');
 		//グループ名候補リストを作成
 		let objGroupNameCandidateList = new Object();
+
+		//空白の数などで並びが変わってしまうため
+		//正規化した名前で処理する
+		let normalKeys = Object.keys(g_objNormalizationNameList);
+		normalKeys.sort();
+
 		let objPosePre = null;
 		for(let oneNormalName of normalKeys){
 			let oneName = g_objNormalizationNameList[oneNormalName];
@@ -1545,6 +1604,7 @@ function groupingByName(){
 
 			//比較用にポーズ名を加工する
 			let compName = objPose.pModifyForCompare;
+			//console.log('compName)'+compName);
 
 			if(objPosePre!=null){
 				//比較用にポーズ名を加工する
@@ -1555,6 +1615,7 @@ function groupingByName(){
 					groupName = groupName.trimEnd();
 					if(!(groupName in objGroupNameCandidateList)){
 						objGroupNameCandidateList[groupName] = null;
+						//console.log('groupName)'+groupName);
 					}
 				}
 			}
@@ -1628,6 +1689,7 @@ function groupingByName(){
 	//グループ化されなかったものを追加
 	//==============================
 	LabelAddUngroupPoses:	{
+		console.log('LabelAddUngroupPoses');
 		for(let i in g_idx2O){
 			let objPose = g_idx2O[i];
 
@@ -1647,6 +1709,7 @@ function groupingByName(){
 	//グループ名の正規化
 	//==============================
 	LabelNormalizationGroup:	{
+		console.log('LabelNormalizationGroup');
 		for(let oneGroupName in objGroup){
 			//末尾の不要な文字列を削除する
 			let newGroupName = oneGroupName.replace(g_delLastNumericRegExp,'$1');
@@ -1663,11 +1726,13 @@ function groupingByName(){
 	//まとめられるグループの対応①
 	//==============================
 	LabelTogetherGroup01:	{
-		let groupNamePre = null;
+		console.log('LabelTogetherGroup01');
 		let groupKeys = Object.keys(objGroup);
 		//	まるめ後の比較
 		//	末尾数字の差異などは、同じグループと判断する
 		groupKeys.sort();
+
+		let groupNamePre = null;
 		for(let groupName of groupKeys){
 			if(groupNamePre!=null){
 				let mergeGroupName = compareName(groupNamePre,groupName,true);
@@ -1682,11 +1747,13 @@ function groupingByName(){
 					fullNameMove(objGroup,mergeGroupName,groupName,true);
 
 					groupNamePre = mergeGroupName;
+					//console.log('merge mergeGroupName:['+mergeGroupName+']groupName:['+groupName+']');
 				}else{
 					//console.log('none groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 					groupNamePre = groupName;
 				}
 			}else{
+				//console.log('first groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 				groupNamePre = groupName;
 			}
 		}
@@ -1696,14 +1763,17 @@ function groupingByName(){
 	//まとめられるグループの対応②
 	//==============================
 	LabelTogetherGroup02:	{
+		console.log('LabelTogetherGroup02');
 		//今のグループ名に、前のグループ名が含まれている場合
 		//前のグループに統合する
 		let groupKeys = Object.keys(objGroup);
 		groupKeys.sort();
+
 		let groupNamePre = null;
 		for(let groupName of groupKeys){
 			if(groupNamePre!=null){
 				if(myStartsWith(groupName,groupNamePre)){
+					//console.log('merge groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 
 					fullNameMove(objGroup,groupNamePre,groupName,true);
 
@@ -1716,240 +1786,133 @@ function groupingByName(){
 		}
 	}
 
-	//製作者のタグリスト
-	//※後続の階層作成に使用する
-	let objCreatorTagList = new Object();
-
-	//作者別にグループを分ける
-	//・グループに作者のclassNameを紐づける
-	//・同一グループに複数名の作者が混ざっている場合は
-	//	複数グループに分ける
-	LabelSplitGroupForCreator:{
-		for(let groupName in objGroup){
-			let oneGroup = objGroup[groupName];
-
-			//グループ内のポーズの製作者数（種類の数）
-			let objCreatorUniqCount = new Object();
-			let creatorCssTag = null;
-
-			//１つのグループ内の全ファイルをチェックする
-			for(let oneFile in oneGroup.pPoseList){
-				let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
-
-				let objCreator = objPose.pCreatorInfo;
-				creatorCssTag = objCreator.pCssTag;
-				if (!(creatorCssTag in objCreatorUniqCount)){
-					objCreatorUniqCount[creatorCssTag] = objCreator.pName;
-					if(Object.keys(objCreatorUniqCount).length>1){
-						break;
-					}
-				}
-			}
-			if(Object.keys(objCreatorUniqCount).length<=1){
-				oneGroup.pCssTag = creatorCssTag;
-				let oneCreatorTag = objCreatorTagList[creatorCssTag] = new Object();
-				oneCreatorTag.pGroupNameList = new Object();
-				oneCreatorTag.pHigerGroupNameList = null;	//上位グループ名と上位グループ番号が入る
-				//グループ内の製作者が一人ならここで終わり
-				continue;
-			}
-
-			//グループ内の製作者が複数いる場合、製作者ごとに分ける
-			//・全てのグループ名を「グループ名＋(creator:製作者名)」とし
-			//	元のグループ名を削除する
-			let objUniqCssTag = new Object();
-			let objPoseListOrg = oneGroup.pPoseList;
-			//１つのグループ内の全ファイルをチェックする
-			for(let oneFile in oneGroup.pPoseList){
-				let objPose = g_nm2O[oneGroup.pPoseList[oneFile]];
-				let objCreator = objPose.pCreatorInfo;
-				let creatorCssTag = objCreator.pCssTag;
-
-				let newGroupName = groupName + ' (creator : ' + objCreator.pName + ')';
-				if (!(creatorCssTag in objUniqCssTag)){
-					objUniqCssTag[creatorCssTag] = true;	//値はなんでもよい
-					objGroup[newGroupName] = makeNewGroup(null);
-					let oneCreatorTag = objCreatorTagList[creatorCssTag] = new Object();
-					oneCreatorTag.pGroupNameList = new Object();
-					oneCreatorTag.pHigerGroupNameList = null;	//上位グループ名と上位グループ番号が入る
-				}
-				objGroup[newGroupName].pCssTag = creatorCssTag;
-				//新しいグループにファイル名を追加する
-				let objPoseList = objGroup[newGroupName].pPoseList;
-				objPoseList[oneFile] = objPose.pName;
-
-				//元のグループからファイル情報を削除する
-				delete objPoseListOrg[oneFile];
-			}
-			delete objGroup[groupName];
-		}
-	}
-
 	//==============================
 	//上位のグループ情報を作成する
 	//==============================
+	let objHigherGroupName = new Object();
 	//グループ名の共通部分をチェックする
-	//※同一製作者の場合のみ
-
 	//グループ情報を作成
 	//大文字・小文字を区別せずソートした順に処理を行う
 	LabelMakeHigherGroup: {
+		console.log('LabelMakeHigherGroup');
 		let groupKeys = Object.keys(objGroup);
 		groupKeys.sort(compareLowerCase);
 
 		let higherGroupSeq = 0;
-		//全製作者
-		for(let oneCreatorTag in objCreatorTagList){
-			//製作者単位で処理を行う
-			let oneCreatorGroup = objCreatorTagList[oneCreatorTag];
-			//製作者ごとにグループ名のリストを作成する
-			//	名前順に処理をする
+		let higerGroupNameList = null;
+
+		//グループ名の共通部分をまとめる
+		//	二段階で処理する
+		//	LabelMakeHigherGroup01：グループ名の中から共通する名前を探す
+		//	LabelMakeHigherGroup02：↑で作成したグループ名の中からさらに共通する名前を探す
+		LabelMakeHigherGroup01:{
+			let newGroupList = new Object();
+
+			let groupNamePre = null;
 			for(let groupName of groupKeys){
-				let oneGroup = objGroup[groupName];
-				if(oneGroup.pCssTag == oneCreatorTag){
-					oneCreatorGroup.pGroupNameList[groupName] = groupName;
-				}
-			}
+				let sameName = null;
+				if(groupName.match(/^\d./)){
+					//１桁目が数字の場合、数字グループを作成する
+					sameName = g_numericGroupName;
+				}else{
+					if(groupNamePre != null){
 
-			if(Object.keys(oneCreatorGroup.pGroupNameList).length<=1){
-				//その製作者のグループが１つしかない場合、後続を処理しない
-				continue;
-			}
+						let objSeparate01	= separateSnakeCamel(groupNamePre,wordSeparator02RegExp);
+						let objSeparate02	= separateSnakeCamel(groupName,wordSeparator02RegExp);
 
-			//グループ名の共通部分をまとめる
-			//	二周回す
-			//	一周目：グループ名の中から共通する名前を探す
-			//	二周目：↑で作成したグループ名の中からさらに共通する名前を探す
-			LabelMakeHigherGroup01:{
-				let newGroupList = new Object();
-				let srcGroupList = oneCreatorGroup.pGroupNameList;
+						let isWords01 = objSeparate01.pIsWord;
+						let isWords02 = objSeparate02.pIsWord;
 
-				let groupNamePre = null;
-				for(let groupName in srcGroupList){
-					let sameName = null;
-					if(groupName.match(/^\d./)){
-						//１桁目が数字の場合、数字グループを作成する
-						sameName = g_numericGroupName;
-					}else{
-						if(groupNamePre != null){
-							let isWords		= !(groupName.match(wordSeparator02RegExp)==null);
-							let isWordsPre	= !(groupNamePre.match(wordSeparator02RegExp)==null);
+//						if(isWords02 == isWords01){
+//							if(isWords02){
+								//両方単語の場合
+//								sameName = makeMergeWord(objSeparate01.pArrayWords,objSeparate02.pArrayWords);
+								//console.log(isWords02+':'+isWords01+')sameName['+sameName+']groupNamePre['+groupNamePre+']groupName['+groupName+']');
+//							}else{
+								//両方単語でない場合
 
-							if(isWords == isWordsPre){
-								if(isWords){
-									sameName = makeMergeWord(groupNamePre,groupName);
-								}else{
-									sameName = compareName(groupNamePre,groupName,false);
-									if(sameName!=null){
-										sameName = sameName.replace(g_delLastNumericRegExp,'$1');
-									}
+//								sameName = compareName(groupNamePre,groupName,false);
+								sameName = compareName(groupNamePre,groupName,false,wordSeparator02RegExp);
+								if(sameName!=null){
+									sameName = sameName.replace(g_delLastNumericRegExp,'$1');
 								}
-							}
-						}
-					}
-					if(sameName!=null){
-						if(sameName!=null){
-							if(!(sameName in newGroupList)){
-								//上位グループ名と連番を採番
-								newGroupList[sameName] = higherGroupSeq++;
-							}
-						}
-					}
-
-					groupNamePre = groupName;
-				}
-				let groupListLen = Object.keys(newGroupList).length;
-				if(groupListLen>0){
-					oneCreatorGroup.pHigerGroupNameList = newGroupList;
-				}
-			}
-
-			/*↓の処理がいまいち*/
-			LabelMakeHigherGroup02:{
-				let srcGroupList = oneCreatorGroup.pHigerGroupNameList;
-
-				//バックアップする
-				let newGroupList = new Object();
-				for (let baseName in srcGroupList){
-					if(baseName.match(/^\d./)){
-						continue;
-					}
-					newGroupList[baseName] = srcGroupList[baseName];
-				}
-
-				for (let baseName in srcGroupList){
-					if(baseName.match(/^\d./)){
-						continue;
-					}
-					for (let targetName in srcGroupList){
-						if(baseName!=targetName){
-
-							let mergeName = compareName(baseName,targetName,false);
-							if(mergeName!=null){
-								if(baseName in newGroupList){
-									delete newGroupList[baseName];
-								}
-								if(targetName in newGroupList){
-									delete newGroupList[targetName];
-								}
-
-								if(!(mergeName in newGroupList)){
-									//上位グループ名と連番を採番
-									newGroupList[mergeName] = higherGroupSeq++;
-								}
-							}
-						}
-					}
-
-//					let isWordsBase		= !(baseName.match(wordSeparator02RegExp)==null);
-//					for (let targetName in srcGroupList){
-//						if(baseName!=targetName){
-//							let isWordsTarget	= !(targetName.match(wordSeparator02RegExp)==null);
-//
-//							let mergeName = null;
-//							if(isWordsBase == isWordsTarget){
-//								if(isWordsBase){
-//									mergeName = makeMergeWord(baseName,targetName);
-//								}else{
-//									mergeName = compareName(baseName,targetName,false);
-//								}
-//							}else if(isWordsBase != isWordsTarget){
-//								//mergeName = baseName;
-//							}
-//
-//							if(mergeName!=null){
-//								if(!(mergeName in newGroupList)){
-//									//上位グループ名と連番を採番
-//									newGroupList[mergeName] = higherGroupSeq++;
-//								}
+								//console.log(isWords02+':'+isWords01+')sameName['+sameName+']groupNamePre['+groupNamePre+']groupName['+groupName+']');
 //							}
 //						}
-//					}
+					}
 				}
-				let groupListLen = Object.keys(newGroupList).length;
-				if(groupListLen>0){
-					oneCreatorGroup.pHigerGroupNameList = newGroupList;
+				if(sameName!=null){
+					if(!(sameName in newGroupList)){
+						//上位グループ名と連番を採番
+						newGroupList[sameName] = higherGroupSeq++;
+					}
 				}
+
+				groupNamePre = groupName;
+			}
+			let groupListLen = Object.keys(newGroupList).length;
+			if(groupListLen>0){
+				higerGroupNameList = newGroupList;
+			}
+		}
+
+		/*↓の処理がいまいち*/
+		LabelMakeHigherGroup02:{
+			let srcGroupList = higerGroupNameList;
+
+			//バックアップする
+			let newGroupList = new Object();
+			for (let baseName in srcGroupList){
+				if(baseName.match(/^\d./)){
+					continue;
+				}
+				newGroupList[baseName] = srcGroupList[baseName];
 			}
 
+			for (let baseName in srcGroupList){
+				if(baseName.match(/^\d./)){
+					continue;
+				}
+				for (let targetName in srcGroupList){
+					if(baseName!=targetName){
 
+						let mergeName = compareName(baseName,targetName,false);
+						if(mergeName!=null){
+							if(baseName in newGroupList){
+								delete newGroupList[baseName];
+							}
+							if(targetName in newGroupList){
+								delete newGroupList[targetName];
+							}
 
-
-			if(oneCreatorGroup.pHigerGroupNameList == null){
-				//上位グループができなかった場合
-				continue;
+							if(!(mergeName in newGroupList)){
+								//上位グループ名と連番を採番
+								newGroupList[mergeName] = higherGroupSeq++;
+							}
+						}
+					}
+				}
 			}
+			let groupListLen = Object.keys(newGroupList).length;
+			if(groupListLen>0){
+				higerGroupNameList = newGroupList;
+			}
+		}
+
+		if(higerGroupNameList != null){
+			//上位グループができた場合のみ処理
 
 			//全てのグループに、属している上位グループの情報を設定する
 			//※できるだけ長い名前に一致するように降順で処理する
-			let higherCandidateKeys = Object.keys(oneCreatorGroup.pHigerGroupNameList);
+			let higherCandidateKeys = Object.keys(higerGroupNameList);
 			higherCandidateKeys.sort(compareLowerCaseRev);
+			//higherCandidateKeys.sort(compareLowerCase);
 
 			for(let higherGroupName of higherCandidateKeys){
-				let higherGroupId = 'idHigerGroup' + oneCreatorGroup.pHigerGroupNameList[higherGroupName];
+				let higherGroupId = 'idHigerGroup' + higerGroupNameList[higherGroupName];
 
 				//全ての上位グループ名に対して処理を行う
-				for(let groupName in oneCreatorGroup.pGroupNameList){
+				for(let groupName of groupKeys){
 					let oneGroup = objGroup[groupName];
 
 					if(oneGroup.pHigherGroupName!=null){
@@ -1970,7 +1933,7 @@ function groupingByName(){
 					}
 
 					if(doSet){
-//console.log('  set higherGroupName['+higherGroupName+']groupName['+groupName+']');
+						//console.log('  set higherGroupName['+higherGroupName+']groupName['+groupName+']');
 						if(higherGroupName in g_systemGroupList){
 							//システムグループの場合
 							if(g_systemGroupList[higherGroupName]==null){
@@ -1983,8 +1946,18 @@ function groupingByName(){
 						oneGroup.pHigherGroupInnerId = 'list' + higherGroupId;
 						oneGroup.pHigherGroupName = higherGroupName;
 						oneGroup.pLevel ++;
+
+						//上位グループに属するポーズ名のリストを作成する
+						if(!(higherGroupName in objHigherGroupName)){
+							objHigherGroupName[higherGroupName] = new Object();
+						}
+						let objPoseListInHigherGroupName = objHigherGroupName[higherGroupName];
+						let onePoseList = oneGroup.pPoseList;
+						for(let oneFile in onePoseList){
+							objPoseListInHigherGroupName[oneFile] = oneFile;
+						}
 					}else{
-//console.log('noset higherGroupName['+higherGroupName+']groupName['+groupName+']');
+						//console.log('noset higherGroupName['+higherGroupName+']groupName['+groupName+']');
 					}
 				}
 			}
@@ -1999,9 +1972,9 @@ function groupingByName(){
 			//  'Submissive Female'
 			//
 			//ただし、pDisplayNameはユニークであること
-
 		}
 	}
+
 
 	//==============================
 	//グループ情報を作成
@@ -2009,7 +1982,9 @@ function groupingByName(){
 	//・g_groupNamesを作成
 	//・g_nm2OのpGroupInfoに反映
 	//
+	let objHigherGroupCssTag = new Object();
 	LabelSetGroupInfomation:	{
+		console.log('LabelSetGroupInfomation');
 		g_groupNames = new Object();
 
 		//大文字・小文字を区別せずソートした順に処理を行う
@@ -2020,6 +1995,8 @@ function groupingByName(){
 		for(let groupName of groupKeys){
 			let oneGroup = objGroup[groupName];
 			let onePoseList = oneGroup.pPoseList;
+
+			//console.log('groupName['+groupName+']/count:'+Object.keys(onePoseList).length);
 
 			oneGroup.pGroupId = 'idGroup' + groupSeq++;
 			oneGroup.pGroupInnerId = 'list' + oneGroup.pGroupId;
@@ -2032,6 +2009,70 @@ function groupingByName(){
 			//グループメンバーにも情報を設定する
 			for(let oneFile in onePoseList){
 				g_nm2O[oneFile].pGroupInfo = oneGroup;
+			}
+
+			labelSetGroupCssTag:{
+				let objUniqCssTag = new Object();
+				let allCreatorTags = null;
+				for(let oneFile in onePoseList){
+					let objPose = g_nm2O[oneFile];
+					let objCreator = objPose.pCreatorInfo;
+					let creatorCssTag = objCreator.pCssTag;
+
+					if (!(creatorCssTag in objUniqCssTag)){
+						objUniqCssTag[creatorCssTag] = null;	//値はなんでもよい
+						if(allCreatorTags!=null){
+							allCreatorTags += ' ' + creatorCssTag;
+						}else{
+							allCreatorTags = creatorCssTag;
+						}
+					}
+				}
+				oneGroup.pCssTag = allCreatorTags;
+			}
+			labelSetHigherGroupCssTag:{
+
+				let higherGroupName = oneGroup.pHigherGroupName;
+
+				//グループへの製作者タグの設定
+				let objUniqCssTag = new Object();
+				let allCreatorTags = null;
+				if(higherGroupName != null){
+					//上位グループに関しては、上位の内容で処理する
+					onePoseList = objHigherGroupName[higherGroupName];
+
+					if(higherGroupName in objHigherGroupCssTag){
+						allCreatorTags = objHigherGroupCssTag[higherGroupName];
+					}
+					//console.log('higherGroupName['+higherGroupName+']/count:'+Object.keys(onePoseList).length+'/allCreatorTags['+allCreatorTags+']');
+				}
+				if(allCreatorTags == null){
+					//グループに属するポーズの製作者タグを重複しないように設定する。
+					for(let oneFile in onePoseList){
+						let objPose = g_nm2O[oneFile];
+						let objCreator = objPose.pCreatorInfo;
+						let creatorCssTag = objCreator.pCssTag;
+
+						if (!(creatorCssTag in objUniqCssTag)){
+							objUniqCssTag[creatorCssTag] = null;	//値はなんでもよい
+							if(allCreatorTags!=null){
+								allCreatorTags += ' ' + creatorCssTag;
+							}else{
+								allCreatorTags = creatorCssTag;
+							}
+						}
+					}
+				}
+
+				if(allCreatorTags!=null){
+					oneGroup.pHigherCssTag = allCreatorTags;
+
+					if(higherGroupName != null){
+						if(!(higherGroupName in objHigherGroupCssTag)){
+							objHigherGroupCssTag[higherGroupName] = allCreatorTags;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2052,17 +2093,11 @@ function compareLowerCaseRev(a, b) {
 	b = (b.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	return (a < b) ?  1 :((b < a) ? -1 : 0);
 }
-
-//プログレスバー設定
-function updateProgress(argTotalCounter=null){
-	if(argTotalCounter!=null){
-		g_progressValue = 0;
-		g_progressBar.max = argTotalCounter;
-		g_progressBar.value = g_progressValue;
-	}else{
-		++g_progressValue;
-	}
+//reverseが妙な動きをするので作成
+function compareRev(a, b) {
+	return (a < b) ?  1 :((b < a) ? -1 : 0);
 }
+
 
 function makeBaseHtml(){
 	function addElmDiv(argAppendObject,argId=null,argClassName=null){
@@ -2261,7 +2296,7 @@ function searchPose(){
 			objPose.pElmFlatScrollTarget.classList.remove('csHide');
 		}
 	}
-	serchText = serchText.toLowerCase()
+	serchText = serchText.toLowerCase();
 
 	let displayString;
 	for(let oneName in g_nm2O){
@@ -2302,17 +2337,6 @@ function receiveWait(){
 		g_progressBar.value = g_progressValue;
 		g_receiveId = setInterval(receiveWait,receiveMS);
 	}else{
-		//==============================
-		//名前の正規化
-		//==============================
-		for(let oneUuid in g_uuid2O){
-			let objCreator = g_uuid2O[oneUuid];
-			objCreator.pNormalizationNameList = makeNormalizationNameList(Object.keys(objCreator.pPoseNameList));
-
-			objCreator.pNormalizationNameSortedKeys = Object.keys(objCreator.pNormalizationNameList);
-			objCreator.pNormalizationNameSortedKeys.sort();
-		}
-
 		//==============================
 		//名前の正規化
 		//==============================

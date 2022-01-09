@@ -270,5 +270,9 @@ fieldset.csCtrl{
 	color:red;
 }
 .csHide{
-	display:none;
+	display:none !important;	/*製作者の指定に負けるのでimportantをつける*/
 	}
+.csGroupTag{
+	display:block;
+	}
+
