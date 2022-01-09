@@ -56,8 +56,7 @@ let g_targetNameList;
 const g_dataTypeINIT = 'INIT';
 const g_dataTypeLIST = 'LIST';
 const g_dataTypeCREATOR = 'CREATOR';
-let g_jsonData = null
-let g_renkeiTid = null;
+//let g_renkeiTid = null;
 let g_totalCount = 0;
 let g_currentIndex = 0;
 
@@ -90,6 +89,10 @@ const g_IdTreeList = 'dPoseTreeList';
 
 const g_TagGroupTag = 'csGroupTag';
 
+//==============================
+//debug用
+//==============================
+const g_isLocal = (location.href).startsWith('file://');
 
 
 //自動順送り
@@ -337,30 +340,47 @@ function requestList(argDataType,argCreatorUuidCsv,argCurrentIndex){
 		break;
 	}
 
-	$.ajax(
-		{
-			'type': 'POST'
-			,'url': location.href
-			,'data': requestData
-		}
-	).done(
-		function(data) {
-			let jsonData = JSON.parse(data);
-			g_jsonData = jsonData;
-			g_renkeiTid = setInterval(testA,10);
-		}
-	).fail(
-		function(data) {
-			if (data.status == 504) {
-				// timeout -> retry
-				requestList(argDataType,argCreatorUuidCsv,argCurrentIndex);
+	if(!g_isLocal){
+		$.ajax(
+			{
+				'type': 'POST'
+				,'url': location.href
+				,'data': requestData
 			}
+		).done(
+			function(data) {
+				receiveJsonData(JSON.parse(data));
+				//g_renkeiTid = setInterval(receiveJsonData,0,JSON.parse(data));
+			}
+		).fail(
+			function(data) {
+				if (data.status == 504) {
+					// timeout -> retry
+					requestList(argDataType,argCreatorUuidCsv,argCurrentIndex);
+				}
+			}
+		);
+	}else{
+		switch(argDataType){
+		case g_dataTypeINIT	:
+			g_sampleJsonIndex = 0;
+			g_sampleJsonLen = g_sampleJson.length;
+
+			receiveJsonData(g_sampleInitJson);
+			//g_renkeiTid = setInterval(receiveJsonData,0,g_sampleInitJson);
+			break;
+		case g_dataTypeLIST	:
+		case g_dataTypeCREATOR	:
+			receiveJsonData(g_sampleJson[g_sampleJsonIndex++]);
+			//g_renkeiTid = setInterval(receiveJsonData,0,g_sampleJson[g_sampleJsonIndex++]);
+			break;
 		}
-	);
+	}
 }
 
-
-function testA(){
+//Jsonデータの受信
+async function receiveJsonData(argJsonData){
+	//名称などが不明なUUIDがあれば、要求リストを作成する
 	function makeUuidCsv(){
 		//一回に送る最大件数
 		//※llRequestAgentDataには0.1秒のディレイがあり
@@ -383,11 +403,14 @@ function testA(){
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-	clearInterval(g_renkeiTid);
+	//clearInterval(g_renkeiTid);
 
-	if(g_jsonData.dType==g_dataTypeINIT){
+	if(argJsonData.dType==g_dataTypeINIT){
+		//初期処理
+		//総レコード数が返ってくる
+
 		//トータルレコード数
-		g_totalCount = g_jsonData.COUNT;
+		g_totalCount = argJsonData.COUNT;
 		updateProgress(g_totalCount);
 
 		//ゼロ件の場合の処理をいれること
@@ -398,7 +421,11 @@ function testA(){
 			requestList(g_dataTypeLIST,null,(g_currentIndex = 0));
 		}
 	}else{
-		g_currentIndex += makePoseInfo(g_jsonData);
+		//以下の処理
+		//・ポーズ情報
+		//・製作者情報
+
+		g_currentIndex += await makePoseInfo(argJsonData);
 
 		//Uuid送信用CSVデータを作成する
 		let sendUuidCsv = makeUuidCsv();
@@ -443,32 +470,36 @@ function sendCommand(argAction,argIndexNo){
 			return;
 		}
 	}
-	$.ajax(
-		{
-			'type': 'POST'
-			,'url': location.href
-			,'data' : command
-		}
-	).done(
-		function(data) {
-			//何もしない
-			if((data=='SAY')||(data=='NOSAY')){
-				g_btnSay.checked = (data=='SAY');
+	if(!g_isLocal){
+		$.ajax(
+			{
+				'type': 'POST'
+				,'url': location.href
+				,'data' : command
 			}
-		}
-	).fail(
-		function(data) {
-			if (data.status == 504) {
-				// timeout -> retry
-				sendCommand(argAction,argIndexNo);
+		).done(
+			function(data) {
+				//何もしない
+				if((data=='SAY')||(data=='NOSAY')){
+					g_btnSay.checked = (data=='SAY');
+				}
 			}
-		}
-	);
+		).fail(
+			function(data) {
+				if (data.status == 504) {
+					// timeout -> retry
+					sendCommand(argAction,argIndexNo);
+				}
+			}
+		);
+	}else{
+		console.log('sendCommand:['+command+']');
+	}
 }
 
 
 //JSON情報をオブジェクトに変換
-function makePoseInfo(argJsonData){
+async function makePoseInfo(argJsonData){
 	let addPoseCount = 0;
 	if(argJsonData.dType == g_dataTypeCREATOR){
 
@@ -538,7 +569,6 @@ function makePoseInfo(argJsonData){
 
 	//animation情報格納用のオブジェクト作成
 	function makeObjPose(argIndexNo,argPoseName,argCreatorUuid) {
-
 		//製作者情報の作成
 		if(!(argCreatorUuid in g_uuid2O)){
 
@@ -595,6 +625,14 @@ function makePoseInfo(argJsonData){
 		return objPose;
 	}
 
+	async function wrapMakeObjPose(argIndexNo,argPoseName,argCreatorUuid){
+		let objPose = makeObjPose(argIndexNo,argPoseName,argCreatorUuid);
+
+		g_nm2O[objPose.pName] = objPose;
+		g_idx2O[objPose.pIndexNo] = objPose;
+	}
+
+
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 	//ポーズリスト（'|'区切り）を分割
 	let poseListPsv = (argJsonData.poseList).split('|');
@@ -609,48 +647,16 @@ function makePoseInfo(argJsonData){
 			continue;
 		}
 
-		let objPose = makeObjPose(psvIndex,psvName,psvUuid);
+		await wrapMakeObjPose(psvIndex,psvName,psvUuid);
+		//let objPose = makeObjPose(psvIndex,psvName,psvUuid);
 
-		g_nm2O[objPose.pName] = objPose;
-		g_idx2O[objPose.pIndexNo] = objPose;
+		//g_nm2O[objPose.pName] = objPose;
+		//g_idx2O[objPose.pIndexNo] = objPose;
 
 		++addPoseCount;
 		updateProgress();
 	}
 
-
-//	labeltest:if(false) {
-//	let index = 0;
-//	let len = poseListPsv.length;
-//	//プログレスバーを進めるために、setTimeoutを利用
-//	setTimeout(	function setOnePoseInfo(){
-//console.log(index);
-//					let psvIndex = poseListPsv[index];	//in worldのcontentsの連番（０～
-//					let psvName = poseListPsv[index+1];	//ポーズ名
-//					let psvUuid = poseListPsv[index+2];	//製作者のUuid
-//
-//					if (!( psvIndex in g_idx2O )){
-//						//同じデータがきたら処理しない
-//						//※通常、ありえない
-//
-//						let objPose = makeObjPose(psvIndex,unescape(psvName),psvUuid);
-//
-//						g_nm2O[objPose.pName] = objPose;
-//						g_idx2O[objPose.pIndexNo] = objPose;
-//
-//						++addPoseCount;
-//						updateProgress();
-//console.log('set psvIndex['+psvIndex+']psvName['+psvName+']psvUuid['+psvUuid+']');
-//console.log('set pIndexNo['+objPose.pIndexNo+']pName['+objPose.pName+']pUuid['+objPose.pUuid+']');
-//					}
-//
-//					index += 3;
-//					if(index<len){
-//						setTimeout(setOnePoseInfo,0);
-//					}
-//				}
-//				,0);
-//	}
 	//追加したポーズ数を返す
 	return addPoseCount;
 }
@@ -664,6 +670,7 @@ function updateProgress(argTotalCounter=null){
 	}else{
 		++g_progressValue;
 	}
+	g_progressBar.value = g_progressValue;
 }
 
 //数値をゼロ詰め数に変換する
@@ -2330,11 +2337,12 @@ function setFieldset(argDisabled){
 	g_btnSay.disabled = argDisabled;
 }
 
+//完了待ち処理
 function receiveWait(){
 	clearInterval(g_receiveId)
 
 	if(!g_receiveEnd){
-		g_progressBar.value = g_progressValue;
+		//g_progressBar.value = g_progressValue;
 		g_receiveId = setInterval(receiveWait,receiveMS);
 	}else{
 		//==============================
@@ -2344,6 +2352,7 @@ function receiveWait(){
 
 		//名前によるグルーピング
 		groupingByName();
+
 		//画面を作成する
 		makeUI();
 	}
@@ -2356,13 +2365,9 @@ $(document).ready(function() {
 		makeBaseHtml();
 		g_receiveEnd = false;
 
+		//完了待ち
 		g_receiveId = setInterval(receiveWait,receiveMS);
 
-		let isLocal = (location.href).startsWith('file://');
-		if(isLocal){
-			g_debugtId = setInterval(debugExecute,500);
-		}else{
-			requestList(g_dataTypeINIT,null,0);
-		}
+		requestList(g_dataTypeINIT,null,0);
 	}
 );
