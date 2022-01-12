@@ -15,6 +15,9 @@
 	--mClGroupOpenHigher	: #008080;	/*グループ行：開いている*/
 	--mClGroupCloseHigher	: #2f4f4f;	/*グループ行：閉じている*/
 	--mClDisabled			: #a9a9a9;
+	--mClIcon		:black;
+	--ggs:1.5;
+	--mWidthIcon	:1.5px;
 	}
 
 *{
@@ -95,6 +98,7 @@ select {
 ,#btnSay[disabled] + .sayLabel{
 	color: var(--mClDisabled);
 }
+
 #btnGroup,#btnVariation,#timerOn{
 	margin: 0 0 0 0.2em;
 	padding: 0;
@@ -247,7 +251,7 @@ fieldset.csCtrl{
 	}
 .csCursorIn{
 	display: flex;
-	justify-content: space-evenly;
+/*	justify-content: space-evenly;*/
 	border: 0;
 	width: 100%;
 	flex-wrap: nowrap;
@@ -255,7 +259,7 @@ fieldset.csCtrl{
 .csTimerIn{
 	border: 0;
 	margin: -10px 0 0 0;
-	text-align: right;
+/*	text-align: right;*/
 	}
 #idMessage{
 	border:0;
@@ -276,3 +280,159 @@ fieldset.csCtrl{
 	display:block;
 	}
 
+
+/*矢印ボタン*/
+/*共通部分*/
+.csIconWaku {
+ box-sizing: border-box;
+ position: relative;
+ display: inline-block;
+ width: 22px;
+ height: 22px;
+ border: var(--mWidthIcon) solid;
+ transform: scale(var(--ggs,1));
+ border-radius: 4px;
+ border-color: var(--mClIcon);
+ margin:8px 8px 4px 8px;
+}
+
+.gg-arrow-down-r::after {
+ width: 6px;
+ height: 6px;
+ border-bottom: var(--mWidthIcon) solid;
+ border-left: var(--mWidthIcon) solid;
+ transform: rotate(-45deg);
+ left: 6px;
+ border-color: var(--mClIcon);
+}
+
+.gg-arrow-down-r::before {
+ width: 2px;
+ height: 10px;
+ left: 8px;
+ background: currentColor;
+}
+/*最下*/
+.gg-push-chevron-down-r::after,
+.gg-push-chevron-down-r::before {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ border-bottom: var(--mWidthIcon) solid;
+ border-color: var(--mClIcon);
+}
+
+.gg-push-chevron-down-r::before {
+ bottom: 5px;
+ width: 8px;
+ height: 2px;
+ left: 5px;
+}
+
+.gg-push-chevron-down-r::after {
+ width: 6px;
+ height: 6px;
+ border-right: var(--mWidthIcon) solid;
+ transform: rotate(45deg);
+ left: 6px;
+ top: 3px;
+ border-color: var(--mClIcon);
+}
+
+
+/*最上*/
+.gg-push-chevron-up-r::after,
+.gg-push-chevron-up-r::before {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ border-top: var(--mWidthIcon) solid;
+ border-color: var(--mClIcon);
+}
+
+.gg-push-chevron-up-r::before {
+ top: 5px;
+ width: 8px;
+ height: 2px;
+ left: 5px;
+}
+
+.gg-push-chevron-up-r::after {
+ width: 6px;
+ height: 6px;
+ border-right: var(--mWidthIcon) solid;
+ transform: rotate(-45deg);
+ left: 6px;
+ bottom: 3px;
+ border-color: var(--mClIcon);
+}
+
+/*下*/
+.gg-chevron-down-r::after {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ width: 6px;
+ height: 6px;
+ border-bottom: var(--mWidthIcon) solid;
+ border-right: var(--mWidthIcon) solid;
+ transform: rotate(45deg);
+ left: 6px;
+ top: 5px;
+ border-color: var(--mClIcon);
+}
+
+
+/*上*/
+.gg-chevron-up-r::after {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ width: 6px;
+ height: 6px;
+ border-top: var(--mWidthIcon) solid;
+ border-right: var(--mWidthIcon) solid;
+ transform: rotate(-45deg);
+ left: 6px;
+ bottom: 5px;
+ border-color: var(--mClIcon);
+}
+
+
+/*×*/
+.gg-close-r::after,
+.gg-close-r::before {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ width: 12px;
+ height: 2px;
+ background: var(--mClIcon);
+ transform: rotate(45deg);
+ border-radius: 5px;
+ top: 8px;
+ left: 3px;
+}
+
+.gg-close-r::after {
+ transform: rotate(-45deg)
+}
+
+/*最小化*/
+.gg-remove-r::before {
+ content: "";
+ display: inline-block;
+ box-sizing: border-box;
+ position: absolute;
+ width: 10px;
+ height: 2px;
+ background: var(--mClIcon);
+ border-radius: 5px;
+ top: 8px;
+ left: 4px;
+}

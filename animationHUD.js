@@ -118,6 +118,43 @@ function getCursorIndex(){
 	}
 	return -1;
 }
+
+function getScrollTarget(argCurIndex){
+	if(argCurIndex<0){
+		return null
+	}
+	let indexNo = g_targetNameList[argCurIndex].custIndexNo;
+	let objPose = g_idx2O[indexNo];
+	if(g_btnTree.checked){
+		return objPose.pElmScrollTarget;
+	}
+	return objPose.pElmFlatScrollTarget;
+}
+
+//スクロール位置調整
+function myScrollTo(argScrollTarget){
+	if(argScrollTarget == null){
+		return;
+	}
+	let poseList = (g_btnTree.checked)?g_poseTreeList:g_poseFlatList;
+
+	let currentOffsetTop = argScrollTarget.offsetTop - poseList.offsetTop;
+	let isUnder	= (poseList.scrollTop < currentOffsetTop);
+	let isOver	= ((currentOffsetTop + argScrollTarget.clientHeight) < (poseList.scrollTop + g_scrollHeight));
+
+	if(! isUnder){
+		poseList.scrollTop = currentOffsetTop - poseList.clientHeight + argScrollTarget.clientHeight;
+	}else if(! isOver){
+		poseList.scrollTop = currentOffsetTop;
+	}
+}
+
+//カーソル位置に移動
+function moveCurrentIndex(){
+	myScrollTo(getScrollTarget(getCursorIndex()));
+}
+
+
 //argIsTopBottom	argIsPrev
 //	true			true		TOP
 //	true			false		BOTTOM
@@ -132,29 +169,11 @@ function cursorAction(argIsPrev=false,argIsTopBottom=false){
 
 	//行の表示の有無
 	function isHiddenRow(argCurIndex){
-		let indexNo = g_targetNameList[argCurIndex].custIndexNo;
-		let objPose = g_idx2O[indexNo];
-		if(g_btnTree.checked){
-			objScrollTarget = objPose.pElmScrollTarget;
-		}else{
-			objScrollTarget = objPose.pElmFlatScrollTarget;
+		objScrollTarget = getScrollTarget(argCurIndex);
+		if(objScrollTarget == null){
+			return false;
 		}
 		return (objScrollTarget.clientHeight<=0);
-	}
-
-	//スクロール位置調整
-	function myScrollTo(argScrollTarget){
-		let poseList = (g_btnTree.checked)?g_poseTreeList:g_poseFlatList;
-
-		let currentOffsetTop = argScrollTarget.offsetTop - poseList.offsetTop;
-		let isUnder	= (poseList.scrollTop < currentOffsetTop);
-		let isOver	= ((currentOffsetTop + argScrollTarget.clientHeight) < (poseList.scrollTop + g_scrollHeight));
-
-		if(! isUnder){
-			poseList.scrollTop = currentOffsetTop - poseList.clientHeight + argScrollTarget.clientHeight;
-		}else if(! isOver){
-			poseList.scrollTop = currentOffsetTop;
-		}
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -217,7 +236,7 @@ function setCreatorList(){
 	let indexNo = g_targetNameList[curIndex].custIndexNo;
 
 	let objPose = g_idx2O[indexNo];
-	let cssTag = objPose.pCreatorInfo.pCssTag;
+	let cssTag = '.' + objPose.pCreatorInfo.pCssTag;
 
 	let creatorOptions = g_selCreator.options;
 	for(let i=0,len=creatorOptions.length;i<len;++i){
@@ -227,6 +246,14 @@ function setCreatorList(){
 		}
 	}
 	changeCreator();
+}
+
+function clearCreatorList(){
+	let creatorOptions = g_selCreator.options;
+	creatorOptions[0].selected = true;
+	changeCreator();
+
+	moveCurrentIndex();	//カーソル位置に移動
 }
 
 function playCtrl(){
@@ -264,7 +291,7 @@ function changeCreator(){
 	//全体表示はOFFにする
 	//製作者指定されているものをONにする
 	addStyleElement(styleId,  '.' + g_TagGroupTag		+ '{display:none;}'
-							+ '.' + g_selCreator.value	+ '{display:block;}'
+							+ g_selCreator.value	+ '{display:block;}'
 							);
 }
 
@@ -364,15 +391,9 @@ function requestList(argDataType,argCreatorUuidCsv,argCurrentIndex){
 		switch(argDataType){
 		case g_dataTypeINIT	:
 			g_sampleJsonIndex = 0;
-			g_sampleJsonLen = g_sampleJson.length;
-
-			receiveJsonData(g_sampleInitJson);
-			//g_renkeiTid = setInterval(receiveJsonData,0,g_sampleInitJson);
-			break;
 		case g_dataTypeLIST	:
 		case g_dataTypeCREATOR	:
 			receiveJsonData(g_sampleJson[g_sampleJsonIndex++]);
-			//g_renkeiTid = setInterval(receiveJsonData,0,g_sampleJson[g_sampleJsonIndex++]);
 			break;
 		}
 	}
@@ -869,7 +890,7 @@ function makeUI(){
 		let objCreator = nameList[oneName];
 		let opt = document.createElement('option');
 		opt.text = objCreator.pName;
-		opt.value = objCreator.pCssTag;
+		opt.value = '.' + objCreator.pCssTag;
 		g_selCreator.appendChild(opt);
 	}
 
@@ -2121,6 +2142,22 @@ function makeBaseHtml(){
 		}
 		return objElement;
 	}
+	function addElmSpan(argAppendObject,argId=null,argClassName=null,argOnClick){
+		let objElement = document.createElement('span');
+		if(argId != null){
+			objElement.id = argId;
+		}
+		if(argClassName != null){
+			objElement.className = argClassName;
+		}
+
+		objElement.onclick = argOnClick;
+
+		if(argAppendObject != null){
+			argAppendObject.appendChild(objElement);
+		}
+		return objElement;
+	}
 
 	function addElmSelect(argAppendObject,argId,argOnChange){
 		let objElement = document.createElement('select');
@@ -2214,7 +2251,8 @@ function makeBaseHtml(){
 	optAll.text = '---all creators---';
 	optAll.value = 'all';
 	g_selCreator.appendChild(optAll);
-	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();},true);
+	addElmButton(elmWakuCreatorIn,null,'csActBtn','CLEAR',function(){clearCreatorList();},true);
+	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();});
 
 	//移動関係
 	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
@@ -2232,10 +2270,11 @@ function makeBaseHtml(){
 	g_selTimer.selectedIndex = 0;
 
 	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
-	addElmButton(elmWakuCursorBtns,null,'csActBtn','TOP',function(){cursorAction(true,true);});
-	addElmButton(elmWakuCursorBtns,null,'csActBtn','PREV',function(){cursorAction(true,false);});
-	addElmButton(elmWakuCursorBtns,null,'csActBtn','NEXT',function(){cursorAction(false,false);});
-	addElmButton(elmWakuCursorBtns,null,'csActBtn','BOTTOM',function(){cursorAction(false,true);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-up-r'		,function(){cursorAction(true,true);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-up-r'			,function(){cursorAction(true,false);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-down-r'	,function(){cursorAction(false,true);});
+
 
 	//==============================
 	//HUDのコントロール
@@ -2248,8 +2287,9 @@ function makeBaseHtml(){
 	let elmWakuCtrlHUD2 = addElmDiv(elmWakuCtrlHUD,null,'csCtrlIn');
 
 	//HUD制御
-	addElmButton(elmWakuCtrlHUD2,'idHudMini','csActBtn csMiniBtn','--',function(){sendCommand('MINI');});
-	addElmButton(elmWakuCtrlHUD2,'idHudDetach','csActBtn csDetachBtn','X',function(){sendCommand('DETACH');},true);
+	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-remove-r'	,function(){sendCommand('MINI');});
+	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-close-r'		,function(){sendCommand('DETACH');});
+	elmWakuCtrlHUD2.appendChild(document.createElement('br'));
 
 	g_btnSay = addElmCheckLabel(elmWakuCtrlHUD2,null,'btnSay',null,'csBtnCmnLbl sayLabel'	,false,'Say',function(){changeSayMode()});
 
@@ -2258,7 +2298,6 @@ function makeBaseHtml(){
 
 	let elmWakuDisplay = addElmFieldset(elmCtrlRight,'idTreeCtrl','csWaku',null,null,objDummySpan);
 	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
-	//elmWakuDisplay.appendChild(document.createElement('br'));
 	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variation',function(){openCloseWaku();});
 
 
@@ -2323,8 +2362,13 @@ function setFieldset(argDisabled){
 	document.getElementById('idTreeCtrl').disabled = argDisabled;
 
 	document.getElementById('btnFlat').disabled = argDisabled;
-	document.getElementById('idHudMini').disabled = argDisabled;
-	document.getElementById('idHudDetach').disabled = argDisabled;
+
+	let rootStyle = document.documentElement.style;
+//	let disabledColor = rootStyle.getPropertyValue('--mClDisabled');
+	let disabledColor = '#a9a9a9';
+	let colorValue = (argDisabled)?disabledColor:'black';
+	console.log(colorValue);
+	rootStyle.setProperty('--mClIcon',colorValue);
 
 	g_btnTimer.disabled = argDisabled;
 	g_btnPlay.disabled = argDisabled;
