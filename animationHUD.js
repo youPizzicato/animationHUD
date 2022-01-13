@@ -490,6 +490,7 @@ function changeSayMode(){
 function sendCommand(argAction,argIndexNo){
 	let command = argAction;
 	if(argAction=='CTRL'){
+		//todo:アニメーション名を送るように改訂する
 		command = 'CTRL,' + argIndexNo;
 	}
 	if(argIndexNo>=0){
@@ -673,11 +674,19 @@ async function makePoseInfo(argJsonData){
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 	//ポーズリスト（'|'区切り）を分割
 	let poseListPsv = (argJsonData.poseList).split('|');
+	let objUuidCache = new Object();
 
-	for(let i=0,len=poseListPsv.length;i<len;i+=3){
+	for(let i=0,len=poseListPsv.length;i<len;i+=4){
 		let psvIndex = poseListPsv[i];				//in worldのcontentsの連番（０～
 		let psvName = unescape(poseListPsv[i+1]);	//ポーズ名
-		let psvUuid = poseListPsv[i+2];				//製作者のUuid
+		let psvUuidNo = poseListPsv[i+2];			//製作者のUuid（番号）
+		let psvUuid = poseListPsv[i+3];				//製作者のUuid
+
+		if(psvUuid!=""){
+			objUuidCache[psvUuidNo] = psvUuid;
+		}else{
+			psvUuid = objUuidCache[psvUuidNo];
+		}
 
 		if ( psvIndex in g_idx2O ){
 			//ありえないが同じデータがきたらスキップ
@@ -1873,20 +1882,16 @@ function groupingByName(){
 		}
 	}
 
-
-
-
 	//==============================
 	//上位のグループ情報を作成する
 	//==============================
 	let objHigherGroupName = new Object();
 
-	//お店で分けられるものをグループ化する
+	//todo:お店で分けられるものをグループ化する
 	for(let oneUuid in g_shopInfo){
 		objShop = g_shopInfo[oneUuid];
 					//pShopName
 	}
-
 
 	//グループ名の共通部分をチェックする
 	//グループ情報を作成
