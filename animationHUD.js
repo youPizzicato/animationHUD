@@ -242,11 +242,11 @@ function setCreatorList(){
 	let indexNo = g_targetNameList[curIndex].custIndexNo;
 
 	let objPose = g_idx2O[indexNo];
-	let cssTag = '.' + objPose.pCreatorInfo.pCssTag;
+	let objRegExpCssTag = new RegExp('\\.' + objPose.pCreatorInfo.pCssTag + '\\b');
 
 	let creatorOptions = g_selCreator.options;
 	for(let i=0,len=creatorOptions.length;i<len;++i){
-		if(creatorOptions[i].value == cssTag){
+		if((creatorOptions[i].value).match(objRegExpCssTag)){
 			creatorOptions[i].selected = true;
 			break;
 		}
@@ -900,43 +900,50 @@ function makeUI(){
 	for(let oneUuid in g_uuid2O){
 		let objCreator = g_uuid2O[oneUuid];
 		let cssTag = '.' + objCreator.pCssTag;
-		nameList[objCreator.pName] = cssTag;
 		if(objCreator.pShopName!=null){
 			if(objCreator.pShopName in shopList){
 				shopList[objCreator.pShopName] += ',' + cssTag;
 			}else{
 				shopList[objCreator.pShopName] = cssTag;
 			}
+		}else{
+			nameList[objCreator.pName] = cssTag;
 		}
 	}
 
 	let parentElement = g_selCreator;
 
 	let shopKeys = Object.keys(shopList);
+	let nameKeys = Object.keys(nameList);
+
 	if(shopKeys.length>0){
 		shopKeys.sort(compareLowerCase);
 
 		//Shopリスト
-		let optgroup = document.createElement('optgroup');
-		optgroup.label = 'shop';
-		g_selCreator.appendChild(optgroup);
+		if((nameKeys.length>0)){
+			let optgroup = document.createElement('optgroup');
+			optgroup.label = 'shop';
+			g_selCreator.appendChild(optgroup);
+			parentElement = optgroup;
+		}
 
 		for(let oneShopName of shopKeys){
 			let cssTag = shopList[oneShopName];
 			let opt = document.createElement('option');
 			opt.text = oneShopName;
 			opt.value = cssTag;
-			optgroup.appendChild(opt);
+			parentElement.appendChild(opt);
 		}
 
+	}
+
+	//製作者リスト
+	if((nameKeys.length>0)&&(shopKeys.length>0)){
 		optgroup = document.createElement('optgroup');
 		optgroup.label = 'creator';
 		g_selCreator.appendChild(optgroup);
 		parentElement = optgroup;
 	}
-
-	//製作者リスト
-	let nameKeys = Object.keys(nameList);
 	nameKeys.sort(compareLowerCase);
 	for(let oneCreatorName of nameKeys){
 		let cssTag = nameList[oneCreatorName];
@@ -1866,10 +1873,21 @@ function groupingByName(){
 		}
 	}
 
+
+
+
 	//==============================
 	//上位のグループ情報を作成する
 	//==============================
 	let objHigherGroupName = new Object();
+
+	//お店で分けられるものをグループ化する
+	for(let oneUuid in g_shopInfo){
+		objShop = g_shopInfo[oneUuid];
+					//pShopName
+	}
+
+
 	//グループ名の共通部分をチェックする
 	//グループ情報を作成
 	//大文字・小文字を区別せずソートした順に処理を行う
