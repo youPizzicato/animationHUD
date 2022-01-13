@@ -18,6 +18,12 @@ const g_delLastNumericRegExp = /^(.*[a-z])([^a-z]+)$/i;
 const g_sameLimitLength = 2;
 
 //==============================
+//個人的によく使うお店の場合、Shop名を記入しておく
+//==============================
+//※animationHUDShopName.jsで初期化する
+let g_shopInfo = new Object();
+
+//==============================
 //ポーズ情報
 //==============================
 let g_idx2O = new Array();	//index(0～) -> object
@@ -310,6 +316,8 @@ function changeDisplayMode(){
 	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
 	g_btnVariation.disabled = g_btnGroup.disabled = ! g_btnTree.checked;
 	g_searchText.disabled = g_btnTree.checked;
+	setIconColor('--mClIconSearch',g_searchText.disabled);
+
 
 	g_targetNameList = (g_btnTree.checked)?g_namesPoses:g_namesPosesFlat;
 }
@@ -596,11 +604,19 @@ async function makePoseInfo(argJsonData){
 			//製作者用cssタグの連番（0～
 			let creatorSeq = Object.keys(g_uuid2O).length;
 
+			let creatorName = null;
+			let shopName = null;
+			if(argCreatorUuid in g_shopInfo){
+				creatorName = g_shopInfo[argCreatorUuid].pName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要;
+				shopName = g_shopInfo[argCreatorUuid].pShopName;
+			}
+
 			//console.log('set g_uuid2O['+argCreatorUuid+']');
 			g_uuid2O[argCreatorUuid] = {
 				 pNo : creatorSeq
 				,pCssTag : 'css_creator_' + creatorSeq
-				,pName : null		//nullの場合、名前要求をする
+				,pName : creatorName		//nullの場合、名前要求をする
+				,pShopName:shopName
 			}
 		}
 		let objCreator = g_uuid2O[argCreatorUuid];
@@ -879,19 +895,55 @@ function makeUI(){
 	//==============================
 	//製作者名でソート
 	let nameList = new Object();
+	let shopList = new Object();
+
 	for(let oneUuid in g_uuid2O){
 		let objCreator = g_uuid2O[oneUuid];
-		nameList[objCreator.pName] = objCreator;
+		let cssTag = '.' + objCreator.pCssTag;
+		nameList[objCreator.pName] = cssTag;
+		if(objCreator.pShopName!=null){
+			if(objCreator.pShopName in shopList){
+				shopList[objCreator.pShopName] += ',' + cssTag;
+			}else{
+				shopList[objCreator.pShopName] = cssTag;
+			}
+		}
 	}
+
+	let parentElement = g_selCreator;
+
+	let shopKeys = Object.keys(shopList);
+	if(shopKeys.length>0){
+		shopKeys.sort(compareLowerCase);
+
+		//Shopリスト
+		let optgroup = document.createElement('optgroup');
+		optgroup.label = 'shop';
+		g_selCreator.appendChild(optgroup);
+
+		for(let oneShopName of shopKeys){
+			let cssTag = shopList[oneShopName];
+			let opt = document.createElement('option');
+			opt.text = oneShopName;
+			opt.value = cssTag;
+			optgroup.appendChild(opt);
+		}
+
+		optgroup = document.createElement('optgroup');
+		optgroup.label = 'creator';
+		g_selCreator.appendChild(optgroup);
+		parentElement = optgroup;
+	}
+
+	//製作者リスト
 	let nameKeys = Object.keys(nameList);
 	nameKeys.sort(compareLowerCase);
-
-	for(let oneName of nameKeys){
-		let objCreator = nameList[oneName];
+	for(let oneCreatorName of nameKeys){
+		let cssTag = nameList[oneCreatorName];
 		let opt = document.createElement('option');
-		opt.text = objCreator.pName;
-		opt.value = '.' + objCreator.pCssTag;
-		g_selCreator.appendChild(opt);
+		opt.text = oneCreatorName;
+		opt.value = cssTag;
+		parentElement.appendChild(opt);
 	}
 
 	//==============================
@@ -2127,6 +2179,20 @@ function compareRev(a, b) {
 }
 
 
+//┏━━━━━━━━┳━━━━━━━━┓
+//┃　　　　　　　　┃PLAY　　　　－×┃
+//┃　　　　　　　　┃　　　　　　Say ┃
+//┃　　　　　　　　┃　　　　　　　　┃
+//┃　　　　　　　　┣━━━━━━━━┫
+//┃　　　　　　　　┃cursor　　　　　┃
+//┃　　　　　　　　┃　　　　　　　　┃
+//┃　　　　　　　　┃　　　　　　　　┃
+//┗━━━━━━━━┻━━━━━━━━┛
+//┏━━━━━━━━┳━━━━━━━━┓
+//┃Tree　　　　　　┃Flat　　　　　　┃
+//┃　　　　　　　　┃　　　　　　　　┃
+//┗━━━━━━━━┻━━━━━━━━┛
+
 function makeBaseHtml(){
 	function addElmDiv(argAppendObject,argId=null,argClassName=null){
 		let objElement = document.createElement('div');
@@ -2251,7 +2317,7 @@ function makeBaseHtml(){
 	optAll.text = '---all creators---';
 	optAll.value = 'all';
 	g_selCreator.appendChild(optAll);
-	addElmButton(elmWakuCreatorIn,null,'csActBtn','CLEAR',function(){clearCreatorList();},true);
+	addElmButton(elmWakuCreatorIn,null,'csActBtn','CLR',function(){clearCreatorList();},true);
 	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();});
 
 	//移動関係
@@ -2274,7 +2340,6 @@ function makeBaseHtml(){
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-up-r'			,function(){cursorAction(true,false);});
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-down-r'	,function(){cursorAction(false,true);});
-
 
 	//==============================
 	//HUDのコントロール
@@ -2311,6 +2376,8 @@ function makeBaseHtml(){
 	g_searchText.placeholder = 'search String';
 	elmWakuDisplayFlat.appendChild(g_searchText);
 
+	addElmSpan(elmWakuDisplayFlat,null,'gg-close-o'	,function(){clearSearch();});
+
 	//プログレスバー
 
 	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
@@ -2332,6 +2399,10 @@ function makeBaseHtml(){
 	setFieldset(true);
 }
 
+function clearSearch(){
+	g_searchText.value = null;
+	searchPose();
+}
 //ポーズ検索処理
 function searchPose(){
 	let serchText = g_searchText.value;
@@ -2363,22 +2434,28 @@ function setFieldset(argDisabled){
 
 	document.getElementById('btnFlat').disabled = argDisabled;
 
-	let rootStyle = document.documentElement.style;
-//	let disabledColor = rootStyle.getPropertyValue('--mClDisabled');
-	let disabledColor = '#a9a9a9';
-	let colorValue = (argDisabled)?disabledColor:'black';
-	console.log(colorValue);
-	rootStyle.setProperty('--mClIcon',colorValue);
+	g_searchText.disabled = argDisabled;
 
 	g_btnTimer.disabled = argDisabled;
 	g_btnPlay.disabled = argDisabled;
 	g_btnTree.disabled = argDisabled;
 
-	g_searchText.disabled = argDisabled;
-
 	g_btnGroup.disabled = argDisabled;
 	g_btnVariation.disabled = argDisabled;
 	g_btnSay.disabled = argDisabled;
+
+	setIconColor('--mClIcon',argDisabled);
+
+	setIconColor('--mClIconSearch',g_searchText.disabled);
+}
+
+function setIconColor(argVariable,argDisabled){
+	let rootStyle = document.documentElement.style;
+//	let disabledColor = rootStyle.getPropertyValue('--mClDisabled');
+	let disabledColor = '#a9a9a9';
+	let colorValue = (argDisabled)?disabledColor:'black';
+
+	rootStyle.setProperty(argVariable,colorValue);
 }
 
 //完了待ち処理
@@ -2405,6 +2482,8 @@ function receiveWait(){
 $(document).ready(function() {
 		//よく使うものを変数で持っておく
 		g_objHead = document.getElementsByTagName('head').item(0);
+
+		initShopInfo();
 
 		makeBaseHtml();
 		g_receiveEnd = false;

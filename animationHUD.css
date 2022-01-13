@@ -16,6 +16,7 @@
 	--mClGroupCloseHigher	: #2f4f4f;	/*グループ行：閉じている*/
 	--mClDisabled			: #a9a9a9;
 	--mClIcon		:black;
+	--mClIconSearch	:black;
 	--ggs:1.5;
 	--mWidthIcon	:1.5px;
 	}
@@ -38,7 +39,7 @@ input[type=checkbox].csGroupChk,input[type=checkbox].csVarBtn,input[type=checkbo
 
 select {
 	padding: 5px;
-	border-radius: 2.5px;
+	border-radius: 10px;
 	font-size:1.2em;
 	}
 
@@ -186,7 +187,7 @@ select {
 	float:left;
 	}
 #selCreatorIdx{
-	margin: -10px 10px 5px 10px;
+	margin: -10px 3px 5px 10px;
 	}
 #selTimer{
 	margin: 0px 10px 5px 10px;
@@ -205,7 +206,7 @@ select {
 	border-radius: 2.5px;
 	font-size:1.1em;
 	padding: 0 0 0 0.5em;
-	width: 80%;
+	width: 60%;
 	}
 
 .csNoWakuRight{
@@ -284,26 +285,26 @@ fieldset.csCtrl{
 /*矢印ボタン*/
 /*共通部分*/
 .csIconWaku {
- box-sizing: border-box;
- position: relative;
- display: inline-block;
- width: 22px;
- height: 22px;
- border: var(--mWidthIcon) solid;
- transform: scale(var(--ggs,1));
- border-radius: 4px;
- border-color: var(--mClIcon);
- margin:8px 8px 4px 8px;
+	box-sizing: border-box;
+	position: relative;
+	display: inline-block;
+	width: 22px;
+	height: 22px;
+	border: var(--mWidthIcon) solid;
+	transform: scale(var(--ggs,1));
+	border-radius: 4px;
+	border-color: var(--mClIcon);
+	margin:8px 8px 4px 8px;
 }
 
 .gg-arrow-down-r::after {
- width: 6px;
- height: 6px;
- border-bottom: var(--mWidthIcon) solid;
- border-left: var(--mWidthIcon) solid;
- transform: rotate(-45deg);
- left: 6px;
- border-color: var(--mClIcon);
+	width: 6px;
+	height: 6px;
+	border-bottom: var(--mWidthIcon) solid;
+	border-left: var(--mWidthIcon) solid;
+	transform: rotate(-45deg);
+	left: 6px;
+	border-color: var(--mClIcon);
 }
 
 .gg-arrow-down-r::before {
@@ -315,124 +316,156 @@ fieldset.csCtrl{
 /*最下*/
 .gg-push-chevron-down-r::after,
 .gg-push-chevron-down-r::before {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- border-bottom: var(--mWidthIcon) solid;
- border-color: var(--mClIcon);
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	border-bottom: var(--mWidthIcon) solid;
+	border-color: var(--mClIcon);
 }
 
 .gg-push-chevron-down-r::before {
- bottom: 5px;
- width: 8px;
- height: 2px;
- left: 5px;
+	bottom: 5px;
+	width: 8px;
+	height: 2px;
+	left: 5px;
 }
 
 .gg-push-chevron-down-r::after {
- width: 6px;
- height: 6px;
- border-right: var(--mWidthIcon) solid;
- transform: rotate(45deg);
- left: 6px;
- top: 3px;
- border-color: var(--mClIcon);
+	width: 6px;
+	height: 6px;
+	border-right: var(--mWidthIcon) solid;
+	transform: rotate(45deg);
+	left: 6px;
+	top: 3px;
+	border-color: var(--mClIcon);
 }
-
 
 /*最上*/
 .gg-push-chevron-up-r::after,
 .gg-push-chevron-up-r::before {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- border-top: var(--mWidthIcon) solid;
- border-color: var(--mClIcon);
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	border-top: var(--mWidthIcon) solid;
+	border-color: var(--mClIcon);
 }
 
 .gg-push-chevron-up-r::before {
- top: 5px;
- width: 8px;
- height: 2px;
- left: 5px;
+	top: 5px;
+	width: 8px;
+	height: 2px;
+	left: 5px;
 }
 
 .gg-push-chevron-up-r::after {
- width: 6px;
- height: 6px;
- border-right: var(--mWidthIcon) solid;
- transform: rotate(-45deg);
- left: 6px;
- bottom: 3px;
- border-color: var(--mClIcon);
+	width: 6px;
+	height: 6px;
+	border-right: var(--mWidthIcon) solid;
+	transform: rotate(-45deg);
+	left: 6px;
+	bottom: 3px;
+	border-color: var(--mClIcon);
 }
 
 /*下*/
 .gg-chevron-down-r::after {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- width: 6px;
- height: 6px;
- border-bottom: var(--mWidthIcon) solid;
- border-right: var(--mWidthIcon) solid;
- transform: rotate(45deg);
- left: 6px;
- top: 5px;
- border-color: var(--mClIcon);
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	border-bottom: var(--mWidthIcon) solid;
+	border-right: var(--mWidthIcon) solid;
+	transform: rotate(45deg);
+	left: 6px;
+	top: 5px;
+	border-color: var(--mClIcon);
 }
 
 
 /*上*/
 .gg-chevron-up-r::after {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- width: 6px;
- height: 6px;
- border-top: var(--mWidthIcon) solid;
- border-right: var(--mWidthIcon) solid;
- transform: rotate(-45deg);
- left: 6px;
- bottom: 5px;
- border-color: var(--mClIcon);
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	border-top: var(--mWidthIcon) solid;
+	border-right: var(--mWidthIcon) solid;
+	transform: rotate(-45deg);
+	left: 6px;
+	bottom: 5px;
+	border-color: var(--mClIcon);
 }
 
 
 /*×*/
 .gg-close-r::after,
 .gg-close-r::before {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- width: 12px;
- height: 2px;
- background: var(--mClIcon);
- transform: rotate(45deg);
- border-radius: 5px;
- top: 8px;
- left: 3px;
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	width: 12px;
+	height: 2px;
+	background: var(--mClIcon);
+	transform: rotate(45deg);
+	border-radius: 5px;
+	top: 8px;
+	left: 3px;
 }
 
 .gg-close-r::after {
- transform: rotate(-45deg)
+	transform: rotate(-45deg)
 }
 
 /*最小化*/
 .gg-remove-r::before {
- content: "";
- display: inline-block;
- box-sizing: border-box;
- position: absolute;
- width: 10px;
- height: 2px;
- background: var(--mClIcon);
- border-radius: 5px;
- top: 8px;
- left: 4px;
+	content: "";
+	display: inline-block;
+	box-sizing: border-box;
+	position: absolute;
+	width: 10px;
+	height: 2px;
+	background: var(--mClIcon);
+	border-radius: 5px;
+	top: 8px;
+	left: 4px;
+}
+
+/*丸の×*/
+.gg-close-o {
+	box-sizing: border-box;
+	position: relative;
+	display: block;
+	transform: scale(var(--ggs,1));
+	width: 22px;
+	height: 22px;
+	border: 2px solid;
+	border-radius: 40px;
+	border-color: var(--mClIconSearch);
+	margin: -10px 5px 5px 10px;
+}
+
+.gg-close-o::after,
+.gg-close-o::before {
+	content: "";
+	display: block;
+	box-sizing: border-box;
+	position: absolute;
+	width: 12px;
+	height: 2px;
+	background: var(--mClIconSearch);
+	transform: rotate(45deg);
+	border-radius: 5px;
+	top: 8px;
+	left: 3px;
+}
+
+.gg-close-o::after {
+	transform: rotate(-45deg);
 }
