@@ -24,7 +24,7 @@
 *{
 	margin:0;
 	padding:0;
-	font-family: 'Dosis', sans-serif,'Helvetica', arial, sans-serif;
+Helvetica', arial, sans-serif;
 	}
 legend {
 	padding: 0 10px;
@@ -37,20 +37,31 @@ body {
 input[type=radio].csPoseRdo {display: none;}
 input[type=checkbox].csGroupChk,input[type=checkbox].csVarBtn,input[type=checkbox]#playBtn {display: none;}
 
+
+
+
+#btnTree {display: none;}
+
 select {
 	padding: 5px;
 	border-radius: 10px;
 	font-size:1.2em;
 	}
 
-#dPoseTreeList,#dPoseFlatList {
+#dPoseTreeList,#dPoseFlatList{
 	height: 100vh;
 	width: 100%;
 	overflow:hidden;
 	overflow-y:scroll;
 	}
-#dPoseTreeList {display: block;}
-#dPoseFlatList {display: none;}
+.csTreeCommon {display: block;}
+.csFlatCommon {display: none;}
+
+
+#idWakuFlat,#idWakuTree{
+	width:100%;
+	height:2em;
+	}
 
 .csCmnLbl{
 	display: inline-flex;
@@ -72,7 +83,6 @@ select {
 }
 .csGroupLbl1,.csGroupLbl2{background-color: var(--mClGroupClose);}
 .csHigherGroupLbl{background-color: var(--mClGroupCloseHigher);}
-/*.csGroupWaku,.csHigherGroupWaku{border:solid 1px black;}*/
 .csGroupChk:checked + .csHigherGroupLbl{background-color: var(--mClGroupOpenHigher);}
 .csGroupChk:checked + .csGroupLbl1,.csGroupChk:checked + .csGroupLbl2{background-color: var(--mClGroupOpen);}
 .csPoseLbl:hover , .csVarLbl:hover {background-color: var(--mClCurHover);}
@@ -95,14 +105,8 @@ select {
 ,#timerOn[disabled] + .csTimerLbl
 ,#playBtn[disabled] + .csPlayLbl
 ,#btnTree[disabled] + .displayLabel
-,#btnFlat[disabled] + .displayFlatLabel
 ,#btnSay[disabled] + .sayLabel{
 	color: var(--mClDisabled);
-}
-
-#btnGroup,#btnVariation,#timerOn{
-	margin: 0 0 0 0.2em;
-	padding: 0;
 }
 
 .csInGroupLbl{margin:0 0 0 0.5em;}
@@ -134,7 +138,7 @@ select {
 	user-select: none;
 	border-radius: 5px;
 	border:solid 2px;
-	padding:5px 20px;
+	padding:5px 10px;
 	}
 
 .csActBtn {
@@ -176,6 +180,7 @@ select {
 #idMain{
 	width:100%;
 	}
+
 #idCtrl{
 	display: flex;
 	width:100%;
@@ -183,7 +188,7 @@ select {
 .csNoWakuLeft{
 	margin: 2px;
 	padding: 0px;
-	width:60%;
+	width:70%;
 	float:left;
 	}
 #selCreatorIdx{
@@ -193,26 +198,10 @@ select {
 	margin: 0px 10px 5px 10px;
 	}
 
-.groupLabel,.variationLabel{
-	margin: -10px 0 0 0;
-}
-#idFlatCtrl{
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-end;
-	}
-#searchText{
-	margin: -10px 0 0 0;
-	border-radius: 2.5px;
-	font-size:1.1em;
-	padding: 0 0 0 0.5em;
-	width: 60%;
-	}
-
 .csNoWakuRight{
 	margin:0 2px;
 	padding: 0px 0px 5px 5px;
-	width:40%;
+	width:30%;
 	float:right;
   	}
 
@@ -250,18 +239,6 @@ fieldset.csCtrl{
 	border:0;
 	margin:0 0 0 0.5em;
 	}
-.csCursorIn{
-	display: flex;
-/*	justify-content: space-evenly;*/
-	border: 0;
-	width: 100%;
-	flex-wrap: nowrap;
-	}
-.csTimerIn{
-	border: 0;
-	margin: -10px 0 0 0;
-/*	text-align: right;*/
-	}
 #idMessage{
 	border:0;
 	padding: 30px 15px;
@@ -280,7 +257,6 @@ fieldset.csCtrl{
 .csGroupTag{
 	display:block;
 	}
-
 
 /*矢印ボタン*/
 /*共通部分*/
@@ -308,10 +284,10 @@ fieldset.csCtrl{
 }
 
 .gg-arrow-down-r::before {
- width: 2px;
- height: 10px;
- left: 8px;
- background: currentColor;
+	width: 2px;
+	height: 10px;
+	left: 8px;
+	background: currentColor;
 }
 /*最下*/
 .gg-push-chevron-down-r::after,
@@ -437,6 +413,143 @@ fieldset.csCtrl{
 	left: 4px;
 }
 
+
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+/* Tree/Flat切替	*/
+.csTreeSwitch {
+	line-height: 1.4em;
+	position: relative;
+	margin: auto;
+	width: 88px;
+	font-size:1.1em;
+}
+
+#btnTree {
+	display: none;
+}
+
+.csTreeSwitch label {
+	display: block;
+	box-sizing: border-box;
+	height: 1.4em;
+	border: 2px solid black;
+	border-radius: 5px;
+	}
+
+
+.csTreeSwitch label span:after{
+	content: "Flat";
+	padding: 0 0 0 30px;
+	}
+
+.csTreeSwitch  input[type="checkbox"]:checked + label span:after{
+	content: "Tree";
+	padding: 0 20px 0 0;
+	}
+
+#idTreeSwitchBtn {
+	position: absolute;
+	width: 12px;
+	height: 1.3em;
+	background: black;
+	top: 4px;
+	left: 4px;
+	border-radius: 5px;
+	transition: .2s;
+	}
+
+#btnTree:checked ~ #idTreeSwitchBtn {
+	transform: translateX(68px);
+	}
+
+
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+#idWakuCursor{
+	margin: 2px;
+	padding:2px;
+	display: flex;
+	flex-wrap: nowrap;
+	}
+.csCursorIn{
+	display: flex;
+	border: 0;
+	width: 100%;
+	flex-wrap: nowrap;
+	margin: 0 0 0 20px;
+	}
+.csTimerIn{
+	border: 0;
+	/*margin: -10px 0 0 0;*/
+	display: flex;
+	flex-wrap: nowrap;
+	}
+
+#timerOn{
+	margin: 10px 0.5em 0px 0.5em;
+	padding: 0;
+}
+
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+#idWakuList{
+	margin: 2px;
+	padding:2px;
+	display: flex;
+	flex-wrap: nowrap;
+	width:100%;
+	}
+#idListType{
+	margin: 0px;
+	padding:0px;
+	}
+
+#idListType{
+	display: flex;
+	flex-wrap: nowrap;
+}
+#idListTypeInnerBtn{
+	width:100px;
+	}
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+#idWakuTreeInner{
+	display: flex;
+	justify-content: center;
+	border: 0;
+	margin: 0;
+	padding: 0.2em;
+	width: 100%;
+	flex-wrap: nowrap;
+	}
+
+#btnGroup,#btnVariation{
+	margin: 7px 0.5em 0px 0.5em;
+	padding: 0;
+}
+
+.groupLabel,.variationLabel{
+	margin: -5px 0 0 0;
+}
+
+
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+#idWakuFlatInner{
+	display: flex;
+	justify-content: center;
+	border: 0;
+	margin: 0;
+	padding: 0.2em;
+	width: 100%;
+	flex-wrap: nowrap;
+	}
+
+/*絞り込み*/
+#searchText{
+	border-radius: 5.0px;
+	font-size:1.1em;
+	padding: 0 0.5em;
+	width: 60%;
+	margin:0 10px 0 0px;
+	}
+
 /*丸の×*/
 .gg-close-o {
 	box-sizing: border-box;
@@ -448,7 +561,6 @@ fieldset.csCtrl{
 	border: 2px solid;
 	border-radius: 40px;
 	border-color: var(--mClIconSearch);
-	margin: -10px 5px 5px 10px;
 }
 
 .gg-close-o::after,

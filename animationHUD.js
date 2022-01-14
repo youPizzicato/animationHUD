@@ -50,6 +50,7 @@ let g_btnSay;
 let g_searchText;
 let g_objMain;
 let g_scrollHeight;
+
 //==============================
 //要素作成後のオブジェクトの格納
 //==============================
@@ -306,14 +307,16 @@ function changeDisplayMode(){
 	delStyleSheet(styleId);
 
 	g_targetNameList = g_namesPosesFlat;
-	let targetDisplayTag = g_IdFlatList;
-	let targetHiddenTag = g_IdTreeList;
+	let targetDisplayTag = '.csFlatCommon';
+	let targetHiddenTag = '.csTreeCommon';
 	if(g_btnTree.checked){
 		g_targetNameList = g_namesPoses;
-		targetDisplayTag = g_IdTreeList;
-		targetHiddenTag = g_IdFlatList;
+		targetDisplayTag = '.csTreeCommon';
+		targetHiddenTag = '.csFlatCommon';
 	}
-	addStyleElement(styleId,'#' + targetDisplayTag + ' {display: block;}'+'#' + targetHiddenTag + ' {display: none;}');
+
+	addStyleElement(styleId,targetDisplayTag + ' {display: block;}'+targetHiddenTag + ' {display: none;}');
+
 	g_btnVariation.disabled = g_btnGroup.disabled = ! g_btnTree.checked;
 	g_searchText.disabled = g_btnTree.checked;
 	setIconColor('--mClIconSearch',g_searchText.disabled);
@@ -2202,20 +2205,11 @@ function compareRev(a, b) {
 }
 
 
-//┏━━━━━━━━┳━━━━━━━━┓
-//┃　　　　　　　　┃PLAY　　　　－×┃
-//┃　　　　　　　　┃　　　　　　Say ┃
-//┃　　　　　　　　┃　　　　　　　　┃
-//┃　　　　　　　　┣━━━━━━━━┫
-//┃　　　　　　　　┃cursor　　　　　┃
-//┃　　　　　　　　┃　　　　　　　　┃
-//┃　　　　　　　　┃　　　　　　　　┃
-//┗━━━━━━━━┻━━━━━━━━┛
-//┏━━━━━━━━┳━━━━━━━━┓
-//┃Tree　　　　　　┃Flat　　　　　　┃
-//┃　　　　　　　　┃　　　　　　　　┃
-//┗━━━━━━━━┻━━━━━━━━┛
 
+//body部の内容を作成
+//以下の理由で動的に書いている
+//・LSLのメモリ負荷を下げる
+//・リリース後の変更が可能
 function makeBaseHtml(){
 	function addElmDiv(argAppendObject,argId=null,argClassName=null){
 		let objElement = document.createElement('div');
@@ -2292,7 +2286,16 @@ function makeBaseHtml(){
 		let objLabel = document.createElement('label');
 		objLabel.htmlFor = objCheckBox.id;
 		objLabel.className = argLabelClassName;
-		objLabel.innerHTML = argLabelText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
+		if(argLabelText != null){
+			switch(typeof argLabelText){
+			case "string":
+				objLabel.innerHTML = argLabelText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
+				break;
+			default:
+				objLabel.appendChild(argLabelText);
+				break;
+			}
+		}
 
 		argAppendObject.appendChild(objCheckBox);
 		argAppendObject.appendChild(objLabel);
@@ -2325,12 +2328,18 @@ function makeBaseHtml(){
 	}
 
 	g_objMain = addElmDiv(null,'idMain');
+
 	let objCtrl = addElmDiv(g_objMain,'idCtrl');
+	let elmWakuListType = addElmDiv(g_objMain,'idListType');
+	let elmCtrlCursor = addElmDiv(g_objMain,null,'csNoWakuCursor');
+	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
+
+	let elmCtrlLeft = addElmDiv(objCtrl,null,'csNoWakuLeft');
+	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWakuRight');
 
 	//==============================
 	//絞り込み・タイマー
 	//==============================
-	let elmCtrlLeft = addElmDiv(objCtrl,null,'csNoWakuLeft');
 	let elmWakuCreator = addElmFieldset(elmCtrlLeft,'idWakuCreator','csWaku',null,'creator',null);
 
 	//製作者関係
@@ -2343,8 +2352,27 @@ function makeBaseHtml(){
 	addElmButton(elmWakuCreatorIn,null,'csActBtn','CLR',function(){clearCreatorList();},true);
 	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();});
 
+	//==============================
+	//HUDのコントロール
+	//==============================
+
+	let elmWakuCtrlHUD = addElmDiv(elmCtrlRight,'idCtrlRight','csCtrl');
+	//再生ボタン
+	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,null,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
+	let elmWakuCtrlHUD2 = addElmDiv(elmWakuCtrlHUD,null,'csCtrlIn');
+
+	//HUD制御
+	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-remove-r'	,function(){sendCommand('MINI');});
+	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-close-r'		,function(){sendCommand('DETACH');});
+	elmWakuCtrlHUD2.appendChild(document.createElement('br'));
+
+	g_btnSay = addElmCheckLabel(elmWakuCtrlHUD2,null,'btnSay',null,'csBtnCmnLbl sayLabel'	,false,'Say',function(){changeSayMode()});
+
+	//==============================
 	//移動関係
-	let elmWakuCursor = addElmFieldset(elmCtrlLeft,'idWakuCursor','csWaku',null,'cursor',null);
+	//==============================
+
+	let elmWakuCursor = addElmFieldset(elmCtrlCursor,'idWakuCursor','csWaku',null,'cursor',null);
 	let elmWakuTimer = addElmDiv(elmWakuCursor,null,'csTimerIn');
 	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
 	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
@@ -2364,46 +2392,40 @@ function makeBaseHtml(){
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-down-r'	,function(){cursorAction(false,true);});
 
+
 	//==============================
-	//HUDのコントロール
+	//Listタイプの変更
 	//==============================
-	let elmCtrlRight = addElmDiv(objCtrl,null,'csNoWakuRight');
+	let elmLisstWaku = addElmFieldset(elmWakuListType,'idWakuList','csWaku',null,'listtype',null);
+	let elmListWakuBtn = addElmDiv(elmLisstWaku,'idListTypeInnerBtn');
+	let elmListWakuCtrl = addElmDiv(elmLisstWaku,'idListTypeInnerCtrl');
 
-	let elmWakuCtrlHUD = addElmDiv(elmCtrlRight,'idCtrlRight','csCtrl');
-	//再生ボタン
-	g_btnPlay = addElmCheckLabel(elmWakuCtrlHUD,null,'playBtn','csActBtn','csCmnLbl csPlayLbl',true,'PLAY',function(){playCtrl();});
-	let elmWakuCtrlHUD2 = addElmDiv(elmWakuCtrlHUD,null,'csCtrlIn');
+	//Tree⇔Flat切替ボタン
+	let elmSwitchTree	= addElmDiv(elmListWakuBtn,null,'csTreeSwitch');
+	let elmSwitchMessage = document.createElement('span');
+	g_btnTree		= addElmCheckLabel(elmSwitchTree,null,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,elmSwitchMessage,function(){changeDisplayMode()});
+	addElmDiv(elmSwitchTree,'idTreeSwitchBtn');
 
-	//HUD制御
-	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-remove-r'	,function(){sendCommand('MINI');});
-	addElmSpan(elmWakuCtrlHUD2,null,'csIconWaku gg-close-r'		,function(){sendCommand('DETACH');});
-	elmWakuCtrlHUD2.appendChild(document.createElement('br'));
+	//TreeList用
+	let elmTabTree	= addElmDiv(elmListWakuCtrl,'idWakuTree','csTreeCommon');
+	let elmTabTreeInner	= addElmDiv(elmTabTree,'idWakuTreeInner');
+	g_btnGroup		= addElmCheckLabel(elmTabTreeInner,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
+	g_btnVariation	= addElmCheckLabel(elmTabTreeInner,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variation',function(){openCloseWaku();});
 
-	g_btnSay = addElmCheckLabel(elmWakuCtrlHUD2,null,'btnSay',null,'csBtnCmnLbl sayLabel'	,false,'Say',function(){changeSayMode()});
-
-	let objDummySpan = document.createElement('span');
-	g_btnTree		= addElmCheckLabel(objDummySpan,'nmDisplay','btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,'tree',function(){changeDisplayMode()});
-
-	let elmWakuDisplay = addElmFieldset(elmCtrlRight,'idTreeCtrl','csWaku',null,null,objDummySpan);
-	g_btnGroup		= addElmCheckLabel(elmWakuDisplay,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
-	g_btnVariation	= addElmCheckLabel(elmWakuDisplay,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variation',function(){openCloseWaku();});
-
-
-	let objFlatSpan = document.createElement('span');
-	addElmCheckLabel(objFlatSpan,'nmDisplay','btnFlat'		,null,'csBtnCmnLbl displayFlatLabel'	,false,'flat',function(){changeDisplayMode()});
-	let elmWakuDisplayFlat = addElmFieldset(elmCtrlRight,'idFlatCtrl','csWaku',null,null,objFlatSpan);
-
+	//FlatList用
+	let elmTabFlat	= addElmDiv(elmListWakuCtrl,'idWakuFlat','csFlatCommon');
+	let elmTabFlatInner	= addElmDiv(elmTabFlat,'idWakuFlatInner');
 	g_searchText = document.createElement('input');
 	g_searchText.type = 'text';
 	g_searchText.id = 'searchText';
 	g_searchText.placeholder = 'search String';
-	elmWakuDisplayFlat.appendChild(g_searchText);
+	elmTabFlatInner.appendChild(g_searchText);
 
-	addElmSpan(elmWakuDisplayFlat,null,'gg-close-o'	,function(){clearSearch();});
+	addElmSpan(elmTabFlatInner,null,'gg-close-o'	,function(){clearSearch();});
+
 
 	//プログレスバー
 
-	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
 	g_progressBar = document.createElement('progress');
 	g_progressBar.id = 'progBar';
 	g_progressBar.value = 0;
@@ -2411,8 +2433,8 @@ function makeBaseHtml(){
 	elmWakuProgress.appendChild(g_progressBar);
 
 	//ポーズ追加用のリスト
-	g_poseTreeList = addElmDiv(null,'dPoseTreeList');
-	g_poseFlatList = addElmDiv(null,g_IdFlatList);
+	g_poseTreeList = addElmDiv(null,g_IdTreeList,'csTreeCommon');
+	g_poseFlatList = addElmDiv(null,g_IdFlatList,'csFlatCommon');
 
 	let docBody = document.body;
 	docBody.appendChild(g_objMain);
@@ -2453,9 +2475,6 @@ function setFieldset(argDisabled){
 	document.getElementById('idWakuCreator').disabled = argDisabled;
 	document.getElementById('idWakuCursor').disabled = argDisabled;
 	document.getElementById('idCtrlRight').disabled = argDisabled;
-	document.getElementById('idTreeCtrl').disabled = argDisabled;
-
-	document.getElementById('btnFlat').disabled = argDisabled;
 
 	g_searchText.disabled = argDisabled;
 
