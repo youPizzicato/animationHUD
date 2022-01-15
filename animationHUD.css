@@ -58,16 +58,11 @@ select {
 .csTreeCommon,.csFlatCommon{
 	padding:0;
 	margin:0;
+	width:100%;
 	}
 .csTreeCommon {display: block;}
 .csFlatCommon {display: none;}
 
-/*
-#idWakuFlat,#idWakuTree{
-	width:100%;
-	height:2em;
-	}
-*/
 .csCmnLbl{
 	display: inline-flex;
 	align-items: center;
@@ -77,8 +72,6 @@ select {
 	}
 .csBtnCmnLbl{
 	display: inline-block;
-	/*padding:5px 5px;*/
-	/*font-weight: bold;*/
 	font-size:1.2em;
 	}
 .csGroupCmnLbl{
@@ -188,20 +181,18 @@ select {
 
 #idCtrl{
 	display: flex;
+	flex-wrap: nowrap;
 	width:100%;
 }
 .csNoWakuLeft{
 	margin: 2px;
-	padding: 0px;
-	width:65%;
-	float:left;
+	width:auto;
 	}
 
 .csNoWakuRight{
-	margin:0 2px;
-	padding: 0px 0px 5px 5px;
-	width:35%;
-	float:right;
+    margin-right: 0px;
+    margin-left: auto;
+	width:150px;
   	}
 
 .csWaku{
@@ -256,7 +247,6 @@ fieldset.csCtrl{
 	transform: scale(var(--ggs,1));
 	border-radius: 4px;
 	border-color: var(--mClIcon);
-	/*margin:8px 8px 4px 8px;*/
 	margin:6px;
 }
 
@@ -486,22 +476,36 @@ fieldset.csCtrl{
 	margin-left:auto;
 	margin-right:0.2em;
 	}
-.csTimerIn{
-	display: flex;
-	flex-wrap: nowrap;
-	margin-left:0.5em;
-	}
-
-.csTimerLbl{
-	margin-top:0.3em;
-	}
+.
 #selTimer{
 	}
+#timerOn,#btnGroup,#btnVariation{
+	display:none;
+	}
 
-#timerOn{
-	margin-top:15px;
-	padding: 0;
-}
+.groupLabel,.variationLabel,.csTimerLbl{
+	font-weight: bold;
+	background-color: var(--mClOff);
+	user-select: none;
+	border-radius: 5px;
+	border:solid 2px;
+	padding:2px 4px;
+	margin-left:2px;
+	margin-right:2px;
+	height:1.1em;
+	font-size:1.2em;
+	}
+.csTimerLbl{
+	margin-top:3px;
+	}
+
+#timerOn:checked + .csTimerLbl
+,#btnGroup:checked + .groupLabel
+,#btnVariation:checked + .variationLabel{
+	background-color: var(--mClOn);
+	}
+
+
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
 #idListType{
@@ -511,8 +515,9 @@ fieldset.csCtrl{
 	flex-wrap: nowrap;
 	}
 #idListTypeInnerCtrl{
-	width:9em;
-	padding: 0;
+	display: flex;
+	flex-wrap: nowrap;
+	width:150px;
 	}
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
@@ -538,21 +543,16 @@ fieldset.csCtrl{
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
 #idWakuFlatInner{
-	display: flex;
-	justify-content: center;
-	border: 0;
-	margin: 0;
 	padding: 0.2em;
 	width: 100%;
-	flex-wrap: nowrap;
 	}
 
 /*絞り込み*/
 #searchText{
 	border-radius: 5.0px;
-	font-size:1.1em;
 	padding-left:0.5em;
 	padding-right:0.5em;
 	width: 100%;
-	margin-right:10px;
+/*	margin-right:10px;*/
+	font-size:1.2em;
 	}

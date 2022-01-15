@@ -2330,7 +2330,6 @@ function makeBaseHtml(){
 	g_objMain = addElmDiv(null,'idMain');
 
 	let objCtrl = addElmDiv(g_objMain,'idCtrl');
-	let elmWakuListType = addElmDiv(g_objMain,'idListType');
 	let elmCtrlCursor = addElmDiv(g_objMain,null,'csNoWakuCursor');
 	let elmWakuProgress = addElmDiv(g_objMain,'idMessage','csWaku');
 
@@ -2383,29 +2382,13 @@ function makeBaseHtml(){
 	g_btnTree		= addElmCheckLabel(elmSwitchTree,null,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,elmSwitchMessage,function(){changeDisplayMode()});
 	addElmDiv(elmSwitchTree,'idTreeSwitchBtn');
 
-
-	//Timer
-	let elmWakuTimer = addElmDiv(elmWakuCursor,null,'csTimerIn');
-	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
-	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
-
-	//timerの間隔設定
-	const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
-	arrayTime.forEach(function(element){
-			let opt = document.createElement('option');
-			opt.text = (opt.value = element);//+ ' sec';
-			g_selTimer.appendChild(opt);
-		});
-	g_selTimer.selectedIndex = 0;
-
-
 	let elmListWakuCtrl = addElmDiv(elmWakuCursor,'idListTypeInnerCtrl');
 
 	//TreeList用
 	let elmTabTree	= addElmDiv(elmListWakuCtrl,'idWakuTree','csTreeCommon');
 	let elmTabTreeInner	= addElmDiv(elmTabTree,'idWakuTreeInner');
-	g_btnGroup		= addElmCheckLabel(elmTabTreeInner,null,'btnGroup'		,null,'csBtnCmnLbl groupLabel'		,false,'group',function(){openCloseWaku();});
-	g_btnVariation	= addElmCheckLabel(elmTabTreeInner,null,'btnVariation'	,null,'csBtnCmnLbl variationLabel'	,false,'variation',function(){openCloseWaku();});
+	g_btnGroup		= addElmCheckLabel(elmTabTreeInner,null,'btnGroup'		,null,'groupLabel'		,false,'group',function(){openCloseWaku();});
+	g_btnVariation	= addElmCheckLabel(elmTabTreeInner,null,'btnVariation'	,null,'variationLabel'	,false,'variation',function(){openCloseWaku();});
 
 	//FlatList用
 	let elmTabFlat	= addElmDiv(elmListWakuCtrl,'idWakuFlat','csFlatCommon');
@@ -2416,9 +2399,23 @@ function makeBaseHtml(){
 	g_searchText.placeholder = 'search String';
 	elmTabFlatInner.appendChild(g_searchText);
 
+	//カーソルとタイマー
+	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
+
+	//Timer
+	g_btnTimer = addElmCheckLabel(elmWakuCursorBtns,null,'timerOn',null,'csTimerLbl',false,'timer',function(){timerAction();});
+	g_selTimer = addElmSelect(elmWakuCursorBtns,'selTimer',function(){timerAction();});
+
+	//timerの間隔設定
+	const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
+	arrayTime.forEach(function(element){
+			let opt = document.createElement('option');
+			opt.text = (opt.value = element);//+ ' sec';
+			g_selTimer.appendChild(opt);
+		});
+	g_selTimer.selectedIndex = 0;
 
 	//カーソルボタン
-	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-up-r'		,function(){cursorAction(true,true);});
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-up-r'			,function(){cursorAction(true,false);});
 	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
