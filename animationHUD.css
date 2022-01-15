@@ -109,11 +109,11 @@ select {
 	color: var(--mClDisabled);
 }
 
-.csInGroupLbl{margin:0 0 0 0.5em;}
-.csNoGroupLbl1{margin:0 0 0 0em;}
-.csNoGroupLbl2{margin:0 0 0 0.5em;}
-.csGroupLbl1{margin:0 0 0 0em;}
-.csGroupLbl2{margin:0 0 0 0.5em;}
+.csInGroupLbl{margin-left:0.5em;}
+/*.csNoGroupLbl1{margin-left:0em;}*/
+.csNoGroupLbl2{margin-left:0.5em;}
+/*.csGroupLbl1{margin-left:0em;}*/
+.csGroupLbl2{margin-left:0.5em;}
 
 .csVarLbl{
 	margin: 0;
@@ -188,20 +188,14 @@ select {
 .csNoWakuLeft{
 	margin: 2px;
 	padding: 0px;
-	width:70%;
+	width:65%;
 	float:left;
-	}
-#selCreatorIdx{
-	margin: -10px 3px 5px 10px;
-	}
-#selTimer{
-	margin: 0px 10px 5px 10px;
 	}
 
 .csNoWakuRight{
 	margin:0 2px;
 	padding: 0px 0px 5px 5px;
-	width:30%;
+	width:35%;
 	float:right;
   	}
 
@@ -217,19 +211,6 @@ fieldset.csWaku{
 fieldset.csCtrl{
 	}
 
-#idWakuCreator{
-	padding: 10px;
-	}
-#idWakuCreatorIn{
-	text-align: right;
-	border:0;
-	margin:0;
-	padding:0;
-	}
-#idWakuCursor{
-	flex-wrap: wrap;
-	}
-
 .csCtrl{
 	border: 0;
 	display: flex;
@@ -237,7 +218,7 @@ fieldset.csCtrl{
 	}
 .csCtrlIn{
 	border:0;
-	margin:0 0 0 0.5em;
+	margin-left:0.5em;
 	}
 #idMessage{
 	border:0;
@@ -413,11 +394,34 @@ fieldset.csCtrl{
 	left: 4px;
 }
 
+.csNoWaku{
+	display: flex;
+	flex-wrap: nowrap;
+	width:100%;
+}
+
+/* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
+#idWakuCreator{
+	padding: 10px;
+	}
+#idWakuCreatorIn{
+	text-align: right;
+	border:0;
+	margin:0;
+	padding:0;
+	}
+#idCreatorListSet{
+	width:100%;
+	justify-content: flex-end;
+}
+#selCreatorIdx{
+	margin-right:10px;
+	}
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
 /* Tree/Flat切替	*/
 .csTreeSwitch {
-	line-height: 1.4em;
+	line-height: 1.1em;
 	position: relative;
 	margin: auto;
 	width: 88px;
@@ -432,10 +436,9 @@ fieldset.csCtrl{
 	display: block;
 	box-sizing: border-box;
 	height: 1.4em;
-	border: 2px solid black;
+	border: 1.5px solid black;
 	border-radius: 5px;
 	}
-
 
 .csTreeSwitch label span:after{
 	content: "Flat";
@@ -472,16 +475,15 @@ fieldset.csCtrl{
 	}
 .csCursorIn{
 	display: flex;
-	border: 0;
-	width: 100%;
 	flex-wrap: nowrap;
-	margin: 0 0 0 20px;
+	margin-left:30px;
 	}
 .csTimerIn{
-	border: 0;
-	/*margin: -10px 0 0 0;*/
 	display: flex;
 	flex-wrap: nowrap;
+	}
+
+#selTimer{
 	}
 
 #timerOn{
@@ -507,8 +509,9 @@ fieldset.csCtrl{
 	flex-wrap: nowrap;
 }
 #idListTypeInnerBtn{
-	width:100px;
+/*	width:100px;*/
 	}
+
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
 #idWakuTreeInner{
 	display: flex;
@@ -526,7 +529,7 @@ fieldset.csCtrl{
 }
 
 .groupLabel,.variationLabel{
-	margin: -5px 0 0 0;
+	margin-top:-5px;
 }
 
 

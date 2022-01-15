@@ -2344,12 +2344,15 @@ function makeBaseHtml(){
 
 	//製作者関係
 	let elmWakuCreatorIn = addElmDiv(elmWakuCreator,'idWakuCreatorIn','csWaku');
-	g_selCreator = addElmSelect(elmWakuCreatorIn,'selCreatorIdx',function(){changeCreator();});
+
+	let elmWakuCreatorList = addElmDiv(elmWakuCreatorIn,'idCreatorListSet','csNoWaku');
+
+	g_selCreator = addElmSelect(elmWakuCreatorList,'selCreatorIdx',function(){changeCreator();});
 	let optAll = document.createElement('option');
 	optAll.text = '---all creators---';
 	optAll.value = 'all';
 	g_selCreator.appendChild(optAll);
-	addElmButton(elmWakuCreatorIn,null,'csActBtn','CLR',function(){clearCreatorList();},true);
+	addElmButton(elmWakuCreatorList,null,'csActBtn','CLR',function(){clearCreatorList();},true);
 	addElmButton(elmWakuCreatorIn,null,'csActBtn','SET CURRENT CREATOR',function(){setCreatorList();});
 
 	//==============================
@@ -2372,7 +2375,7 @@ function makeBaseHtml(){
 	//移動関係
 	//==============================
 
-	let elmWakuCursor = addElmFieldset(elmCtrlCursor,'idWakuCursor','csWaku',null,'cursor',null);
+	let elmWakuCursor = addElmDiv(elmCtrlCursor,null,'csNoWaku');
 	let elmWakuTimer = addElmDiv(elmWakuCursor,null,'csTimerIn');
 	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
 	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
@@ -2396,9 +2399,10 @@ function makeBaseHtml(){
 	//==============================
 	//Listタイプの変更
 	//==============================
-	let elmLisstWaku = addElmFieldset(elmWakuListType,'idWakuList','csWaku',null,'listtype',null);
-	let elmListWakuBtn = addElmDiv(elmLisstWaku,'idListTypeInnerBtn');
-	let elmListWakuCtrl = addElmDiv(elmLisstWaku,'idListTypeInnerCtrl');
+	let elmListWakuField = addElmFieldset(elmWakuListType,'idWakuList','csWaku',null,'listtype',null);
+	let elmListWaku = addElmDiv(elmListWakuField,null,'csNoWaku');
+	let elmListWakuBtn = addElmDiv(elmListWaku,'idListTypeInnerBtn');
+	let elmListWakuCtrl = addElmDiv(elmListWaku,'idListTypeInnerCtrl');
 
 	//Tree⇔Flat切替ボタン
 	let elmSwitchTree	= addElmDiv(elmListWakuBtn,null,'csTreeSwitch');
@@ -2473,7 +2477,7 @@ function searchPose(){
 
 function setFieldset(argDisabled){
 	document.getElementById('idWakuCreator').disabled = argDisabled;
-	document.getElementById('idWakuCursor').disabled = argDisabled;
+//	document.getElementById('idWakuCursor').disabled = argDisabled;
 	document.getElementById('idCtrlRight').disabled = argDisabled;
 
 	g_searchText.disabled = argDisabled;
