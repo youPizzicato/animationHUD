@@ -2376,6 +2376,15 @@ function makeBaseHtml(){
 	//==============================
 
 	let elmWakuCursor = addElmDiv(elmCtrlCursor,null,'csNoWaku');
+
+	//Tree⇔Flat切替ボタン
+	let elmSwitchTree	= addElmDiv(elmWakuCursor,null,'csTreeSwitch');
+	let elmSwitchMessage = document.createElement('span');
+	g_btnTree		= addElmCheckLabel(elmSwitchTree,null,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,elmSwitchMessage,function(){changeDisplayMode()});
+	addElmDiv(elmSwitchTree,'idTreeSwitchBtn');
+
+
+	//Timer
 	let elmWakuTimer = addElmDiv(elmWakuCursor,null,'csTimerIn');
 	g_btnTimer = addElmCheckLabel(elmWakuTimer,null,'timerOn',null,'csBtnCmnLbl csTimerLbl',false,'timer',function(){timerAction();});
 	g_selTimer = addElmSelect(elmWakuTimer,'selTimer',function(){timerAction();});
@@ -2384,31 +2393,13 @@ function makeBaseHtml(){
 	const arrayTime = ([2,3,5,10,15,20,30,60,90,120]).sort((a, b) => a - b);
 	arrayTime.forEach(function(element){
 			let opt = document.createElement('option');
-			opt.text = (opt.value = element)+ ' sec';
+			opt.text = (opt.value = element);//+ ' sec';
 			g_selTimer.appendChild(opt);
 		});
 	g_selTimer.selectedIndex = 0;
 
-	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
-	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-up-r'		,function(){cursorAction(true,true);});
-	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-up-r'			,function(){cursorAction(true,false);});
-	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
-	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-down-r'	,function(){cursorAction(false,true);});
 
-
-	//==============================
-	//Listタイプの変更
-	//==============================
-	let elmListWakuField = addElmFieldset(elmWakuListType,'idWakuList','csWaku',null,'listtype',null);
-	let elmListWaku = addElmDiv(elmListWakuField,null,'csNoWaku');
-	let elmListWakuBtn = addElmDiv(elmListWaku,'idListTypeInnerBtn');
-	let elmListWakuCtrl = addElmDiv(elmListWaku,'idListTypeInnerCtrl');
-
-	//Tree⇔Flat切替ボタン
-	let elmSwitchTree	= addElmDiv(elmListWakuBtn,null,'csTreeSwitch');
-	let elmSwitchMessage = document.createElement('span');
-	g_btnTree		= addElmCheckLabel(elmSwitchTree,null,'btnTree'		,null,'csBtnCmnLbl displayLabel'	,true,elmSwitchMessage,function(){changeDisplayMode()});
-	addElmDiv(elmSwitchTree,'idTreeSwitchBtn');
+	let elmListWakuCtrl = addElmDiv(elmWakuCursor,'idListTypeInnerCtrl');
 
 	//TreeList用
 	let elmTabTree	= addElmDiv(elmListWakuCtrl,'idWakuTree','csTreeCommon');
@@ -2420,13 +2411,18 @@ function makeBaseHtml(){
 	let elmTabFlat	= addElmDiv(elmListWakuCtrl,'idWakuFlat','csFlatCommon');
 	let elmTabFlatInner	= addElmDiv(elmTabFlat,'idWakuFlatInner');
 	g_searchText = document.createElement('input');
-	g_searchText.type = 'text';
+	g_searchText.type = 'search';
 	g_searchText.id = 'searchText';
 	g_searchText.placeholder = 'search String';
 	elmTabFlatInner.appendChild(g_searchText);
 
-	addElmSpan(elmTabFlatInner,null,'gg-close-o'	,function(){clearSearch();});
 
+	//カーソルボタン
+	let elmWakuCursorBtns = addElmDiv(elmWakuCursor,null,'csCursorIn');
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-up-r'		,function(){cursorAction(true,true);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-up-r'			,function(){cursorAction(true,false);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-chevron-down-r'		,function(){cursorAction(false,false);});
+	addElmSpan(elmWakuCursorBtns,null,'csIconWaku gg-push-chevron-down-r'	,function(){cursorAction(false,true);});
 
 	//プログレスバー
 
@@ -2448,10 +2444,6 @@ function makeBaseHtml(){
 	setFieldset(true);
 }
 
-function clearSearch(){
-	g_searchText.value = null;
-	searchPose();
-}
 //ポーズ検索処理
 function searchPose(){
 	let serchText = g_searchText.value;

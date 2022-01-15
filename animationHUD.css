@@ -43,7 +43,8 @@ input[type=checkbox].csGroupChk,input[type=checkbox].csVarBtn,input[type=checkbo
 #btnTree {display: none;}
 
 select {
-	padding: 5px;
+	padding-left: 0.2em;
+	padding-right: 0.2em;
 	border-radius: 10px;
 	font-size:1.2em;
 	}
@@ -54,15 +55,19 @@ select {
 	overflow:hidden;
 	overflow-y:scroll;
 	}
+.csTreeCommon,.csFlatCommon{
+	padding:0;
+	margin:0;
+	}
 .csTreeCommon {display: block;}
 .csFlatCommon {display: none;}
 
-
+/*
 #idWakuFlat,#idWakuTree{
 	width:100%;
 	height:2em;
 	}
-
+*/
 .csCmnLbl{
 	display: inline-flex;
 	align-items: center;
@@ -72,8 +77,8 @@ select {
 	}
 .csBtnCmnLbl{
 	display: inline-block;
-	padding:5px 5px;
-	font-weight: bold;
+	/*padding:5px 5px;*/
+	/*font-weight: bold;*/
 	font-size:1.2em;
 	}
 .csGroupCmnLbl{
@@ -251,7 +256,8 @@ fieldset.csCtrl{
 	transform: scale(var(--ggs,1));
 	border-radius: 4px;
 	border-color: var(--mClIcon);
-	margin:8px 8px 4px 8px;
+	/*margin:8px 8px 4px 8px;*/
+	margin:6px;
 }
 
 .gg-arrow-down-r::after {
@@ -402,12 +408,12 @@ fieldset.csCtrl{
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
 #idWakuCreator{
-	padding: 10px;
+	padding: 10px 5px 2px 5px;
 	}
 #idWakuCreatorIn{
 	text-align: right;
 	border:0;
-	margin:0;
+	margin-top:-10px;
 	padding:0;
 	}
 #idCreatorListSet{
@@ -423,8 +429,8 @@ fieldset.csCtrl{
 .csTreeSwitch {
 	line-height: 1.1em;
 	position: relative;
-	margin: auto;
-	width: 88px;
+	margin: auto 0.2em;
+	width: 66px;
 	font-size:1.1em;
 }
 
@@ -438,11 +444,12 @@ fieldset.csCtrl{
 	height: 1.4em;
 	border: 1.5px solid black;
 	border-radius: 5px;
+	padding:5px 5px;
 	}
 
 .csTreeSwitch label span:after{
 	content: "Flat";
-	padding: 0 0 0 30px;
+	padding: 0 0 0 20px;
 	}
 
 .csTreeSwitch  input[type="checkbox"]:checked + label span:after{
@@ -462,7 +469,7 @@ fieldset.csCtrl{
 	}
 
 #btnTree:checked ~ #idTreeSwitchBtn {
-	transform: translateX(68px);
+	transform: translateX(46px);
 	}
 
 
@@ -476,40 +483,36 @@ fieldset.csCtrl{
 .csCursorIn{
 	display: flex;
 	flex-wrap: nowrap;
-	margin-left:30px;
+	margin-left:auto;
+	margin-right:0.2em;
 	}
 .csTimerIn{
 	display: flex;
 	flex-wrap: nowrap;
+	margin-left:0.5em;
 	}
 
+.csTimerLbl{
+	margin-top:0.3em;
+	}
 #selTimer{
 	}
 
 #timerOn{
-	margin: 10px 0.5em 0px 0.5em;
+	margin-top:15px;
 	padding: 0;
 }
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
-#idWakuList{
-	margin: 2px;
-	padding:2px;
-	display: flex;
-	flex-wrap: nowrap;
-	width:100%;
-	}
 #idListType{
 	margin: 0px;
 	padding:0px;
-	}
-
-#idListType{
 	display: flex;
 	flex-wrap: nowrap;
-}
-#idListTypeInnerBtn{
-/*	width:100px;*/
+	}
+#idListTypeInnerCtrl{
+	width:9em;
+	padding: 0;
 	}
 
 /* ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ */
@@ -524,12 +527,12 @@ fieldset.csCtrl{
 	}
 
 #btnGroup,#btnVariation{
-	margin: 7px 0.5em 0px 0.5em;
+	margin-top:10px;
 	padding: 0;
 }
 
-.groupLabel,.variationLabel{
-	margin-top:-5px;
+.groupLabel,.variationLabel,.csTimerLb{
+	/*margin-top:-5px;*/
 }
 
 
@@ -548,39 +551,8 @@ fieldset.csCtrl{
 #searchText{
 	border-radius: 5.0px;
 	font-size:1.1em;
-	padding: 0 0.5em;
-	width: 60%;
-	margin:0 10px 0 0px;
+	padding-left:0.5em;
+	padding-right:0.5em;
+	width: 100%;
+	margin-right:10px;
 	}
-
-/*丸の×*/
-.gg-close-o {
-	box-sizing: border-box;
-	position: relative;
-	display: block;
-	transform: scale(var(--ggs,1));
-	width: 22px;
-	height: 22px;
-	border: 2px solid;
-	border-radius: 40px;
-	border-color: var(--mClIconSearch);
-}
-
-.gg-close-o::after,
-.gg-close-o::before {
-	content: "";
-	display: block;
-	box-sizing: border-box;
-	position: absolute;
-	width: 12px;
-	height: 2px;
-	background: var(--mClIconSearch);
-	transform: rotate(45deg);
-	border-radius: 5px;
-	top: 8px;
-	left: 3px;
-}
-
-.gg-close-o::after {
-	transform: rotate(-45deg);
-}
