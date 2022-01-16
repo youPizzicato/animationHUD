@@ -476,8 +476,9 @@ fieldset.csCtrl{
 	margin-left:auto;
 	margin-right:0.2em;
 	}
-.
+
 #selTimer{
+	margin-right:0.2em;
 	}
 #timerOn,#btnGroup,#btnVariation{
 	display:none;
