@@ -493,8 +493,12 @@ function changeSayMode(){
 function sendCommand(argAction,argIndexNo){
 	let command = argAction;
 	if(argAction=='CTRL'){
-		//todo:アニメーション名を送るように改訂する
-		command = 'CTRL,' + argIndexNo;
+		let sendAnimationNameEsc = '';
+		if(argIndexNo in g_idx2O){
+			let objPose = g_idx2O[argIndexNo];
+			sendAnimationNameEsc = escape(objPose.pName);
+		}
+		command = 'CTRL,' + sendAnimationNameEsc;
 	}
 	if(argIndexNo>=0){
 		//再生指示
