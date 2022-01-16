@@ -681,12 +681,12 @@ async function makePoseInfo(argJsonData){
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 	//ポーズリスト（'|'区切り）を分割
-	let poseListPsv = (argJsonData.poseList).split('|');
+	let poseListPsv = (unescape(argJsonData.poseList)).split('|');
 	let objUuidCache = new Object();
 
 	for(let i=0,len=poseListPsv.length;i<len;i+=4){
 		let psvIndex = poseListPsv[i];				//in worldのcontentsの連番（０～
-		let psvName = unescape(poseListPsv[i+1]);	//ポーズ名
+		let psvName = poseListPsv[i+1];	//ポーズ名
 		let psvUuidNo = poseListPsv[i+2];			//製作者のUuid（番号）
 		let psvUuid = poseListPsv[i+3];				//製作者のUuid
 
