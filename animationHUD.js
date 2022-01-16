@@ -493,12 +493,13 @@ function changeSayMode(){
 function sendCommand(argAction,argIndexNo){
 	let command = argAction;
 	if(argAction=='CTRL'){
-		let sendAnimationNameEsc = '';
+		let sendAnimationName = '';
 		if(argIndexNo in g_idx2O){
 			let objPose = g_idx2O[argIndexNo];
-			sendAnimationNameEsc = escape(objPose.pName);
+			sendAnimationName = objPose.pName;
 		}
-		command = 'CTRL,' + sendAnimationNameEsc;
+		command = 'CTRL,' + sendAnimationName;
+		console.log(command);
 	}
 	if(argIndexNo>=0){
 		//再生指示
