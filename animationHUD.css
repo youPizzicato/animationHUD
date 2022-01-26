@@ -108,8 +108,12 @@ select {
 }
 
 .csInGroupLbl{margin-left:0.5em;}
+
+/*todo:この差異が必要かチェックする*/
 /*.csNoGroupLbl1{margin-left:0em;}*/
 .csNoGroupLbl2{margin-left:0.5em;}
+
+/*todo:この差異が必要かチェックする*/
 /*.csGroupLbl1{margin-left:0em;}*/
 .csGroupLbl2{margin-left:0.5em;}
 
@@ -152,6 +156,8 @@ select {
 
 .csVarOne{
 	}
+
+/*todo:ここの差異は必要か*/
 .csVarDiv1{
 	padding: 0;
 	margin: 0.2em 0.2em 0.2em 2.25em;

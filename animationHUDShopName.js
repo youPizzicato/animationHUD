@@ -8,13 +8,15 @@ function initShopInfo(){
 			return;
 		}
 		g_shopInfo[argUuid] = {
-			 pUuid:argUuid
-			,pName:argName
-			,pShopName:argShopName
+			 pUuid:argUuid			//製作者のUUID
+			,pName:argName			//製作者名
+			,pShopName:argShopName	//お店の名前
+			,pIsUsed:false			//使用されているか
+			,pShopNameInfo:null
 			};
 		//console.log(g_shopInfo[argUuid]);
 	}
-
+	//return;
 	setShopInfo('Ana Poses','8c385ca7-d4b8-486a-9453-e95383b3f489','Fanny Finney');
 	setShopInfo('BERAS','0175ffcc-4029-4ef4-ba2f-634d03495e82','Bifu Szondi');
 	setShopInfo('BOSSIE. RENIE','e9dfb24c-49cf-45d7-9566-76626500adbb','MiraLeen Resident');
@@ -44,7 +46,7 @@ function initShopInfo(){
 	setShopInfo('NinaX Studio','4bad90e3-d854-416a-b371-83d4f0c9d5d6','ninalexa Resident');
 	setShopInfo('OMY','aecced1b-c1dd-4ae4-b58b-674a4fcf780b','Shellina Alpha');
 	setShopInfo('Olivia Golden','458d7eda-d7da-4068-8cb2-9f0a3063dda8','OliviaGolden Resident');
-	//setShopInfo('PARAGON DANCE','c9cfa9f9-b735-487e-a2b5-4f9f8a825b84','JNakagawa Resident');
+	setShopInfo('PARAGON DANCE','c9cfa9f9-b735-487e-a2b5-4f9f8a825b84','JNakagawa Resident');
 	setShopInfo('PHOTOSHOOT','b06318a0-cc68-49cc-952a-28dc7329da37','emmyleitao Resident');
 	setShopInfo('PRINT','dcfca644-a306-4c16-be47-f6e9be5d414a','Ashlie Coba');
 	setShopInfo('PaciFish Poses','65aca4aa-a2f3-40dd-96f4-3304018c0d01','Pupperino Resident');

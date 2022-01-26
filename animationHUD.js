@@ -22,6 +22,8 @@ const g_sameLimitLength = 2;
 //==============================
 //※animationHUDShopName.jsで初期化する
 let g_shopInfo = new Object();
+let g_shopName = new Object();
+let g_higerGroupList = new Object();	//キー：グループID
 
 //==============================
 //ポーズ情報
@@ -80,12 +82,7 @@ const receiveMS = 200;
 //==============================
 //システムであらかじめつくった上位グループ
 //==============================
-//	システムグループ名:システムグループに属するグループの情報が１つ(※)入っている
-//	※上位グループの情報を参照するだけなので、複数あっても同じなので１つだけでいい。
-//	※万が一、従来ロジックで作られたグループ名と重複しないように'|'を含む名前にしている
-let g_systemGroupList = new Object();
 const g_numericGroupName = '#number |* system group *|';	//数値グループの上位
-g_systemGroupList[g_numericGroupName] = null;
 
 //==============================
 //よく使うIDなどなど
@@ -350,10 +347,10 @@ function openCloseWaku(argTragetId=null,argChecked=null) {
 		let objNameList = document.getElementsByName(targetId + 'List');
 		//↓ここはfor inにするとプロパティも入ってくるので注意
 		for(let i=0,len=objNameList.length;i<len;++i){
-			let oneTarget = objNameList[i];
-			oneTarget.checked = objCheckItem.checked;
+			let objTarget = objNameList[i];
+			objTarget.checked = objCheckItem.checked;
 
-			dispFunc(oneTarget);
+			dispFunc(objTarget);
 		}
 	}else{
 		dispFunc(objTarget);
@@ -535,6 +532,10 @@ function sendCommand(argAction,argIndexNo){
 	}
 }
 
+function trimRegidentName(argRegidentName){
+	return argRegidentName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
+}
+
 
 //JSON情報をオブジェクトに変換
 async function makePoseInfo(argJsonData){
@@ -548,7 +549,7 @@ async function makePoseInfo(argJsonData){
 			let creatorUuid = unescape(creatorListPsv[i+1]);
 			let objCreator = g_uuid2O[creatorUuid];
 			//console.log(creatorUuid+':'+creatorName+':'+objCreator);
-			objCreator.pName = creatorName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要
+			objCreator.pName = trimRegidentName(creatorName);
 		}
 
 		return addPoseCount;
@@ -615,9 +616,12 @@ async function makePoseInfo(argJsonData){
 
 			let creatorName = null;
 			let shopName = null;
+			//お店情報があれば、そこから製作者名やお店の名前を取得する
 			if(argCreatorUuid in g_shopInfo){
-				creatorName = g_shopInfo[argCreatorUuid].pName.replace(/ Resident$/,'');	//製作者名末尾の'Resident'は不要;
-				shopName = g_shopInfo[argCreatorUuid].pShopName;
+				let objShopInfo = g_shopInfo[argCreatorUuid];
+				creatorName = trimRegidentName(objShopInfo.pName);
+				shopName = objShopInfo.pShopName;
+				objShopInfo.pIsUsed = true;
 			}
 
 			//console.log('set g_uuid2O['+argCreatorUuid+']');
@@ -625,7 +629,7 @@ async function makePoseInfo(argJsonData){
 				 pNo : creatorSeq
 				,pCssTag : 'css_creator_' + creatorSeq
 				,pName : creatorName		//nullの場合、名前要求をする
-				,pShopName:shopName
+				,pShopName : shopName
 			}
 		}
 		let objCreator = g_uuid2O[argCreatorUuid];
@@ -666,8 +670,18 @@ async function makePoseInfo(argJsonData){
 
 				//製作者情報
 				,pCreatorInfo : objCreator
-			}
 
+				//グループ情報
+				//todo
+				,pItemGroupInfo : null	//商品グループ情報(Object)
+										//	pGroupName : null
+										//	pCssTag : null
+										//	pGroupId :null
+										//	pGroupInnerId : null
+										//	pMemCount:0
+				,pShopGroupInfo : null	//お店グループ情報(Object):名前でユニーク
+										//	makeShopGroupInfoで作成
+			}
 		return objPose;
 	}
 
@@ -690,7 +704,7 @@ async function makePoseInfo(argJsonData){
 		let psvUuidNo = poseListPsv[i+2];			//製作者のUuid（番号）
 		let psvUuid = poseListPsv[i+3];				//製作者のUuid
 
-		if(psvUuid!=""){
+		if(psvUuid!=''){
 			objUuidCache[psvUuidNo] = psvUuid;
 		}else{
 			psvUuid = objUuidCache[psvUuidNo];
@@ -773,6 +787,7 @@ function makeNormalizationNameList(argTargetKeys){
 
 //基本要素を作成する
 function makeUI(){
+	//ラベルの作成
 	function makePartsLabel(argId,argClassTag,argText=null,argTitle=null){
 		let objLabel = document.createElement('label');
 
@@ -839,32 +854,26 @@ function makeUI(){
 			//※バリエーションはこれに追加していく
 			let objVariationArea = objWaku.appendChild(document.createElement('div'));
 			objVariationArea.id = objVarBtn.custId;
-			objVariationArea.className = 'csVarDiv' + argObjPose.pGroupInfo.pLevel + ' ' + objVarBtn.id;
+			objVariationArea.className = 'csVarDiv' + ((argObjPose.pGroupInfo==null)?0:argObjPose.pGroupInfo.pLevel) + ' ' + objVarBtn.id;
+																//todo:なんか死ぬのでnull対策
 			argObjPose.pElmVariationArea = objVariationArea;
 		}
 		return objWaku;
 	}
 
-	function makeHigherGroup(argObjGroup,argIsHighGroup,addObjTarget){
+	//todo:将来的にはmakeShopGroupに置き換わる。
+	//		makeShopGroupは、システムグループの対応をしていないため、まだ置いておく
+	function makeHigherGroup(argObjGroup,argLevel,addObjTarget){
 		let outerCssTag = 'csGroupWaku';
-		let outerLabelCssTag = 'csGroupLbl' + argObjGroup.pLevel;
+		let outerLabelCssTag = 'csGroupLbl' + argLevel;
 		let outerId = argObjGroup.pGroupId;
 		let innerId = argObjGroup.pGroupInnerId;
 		let groupName = argObjGroup.pGroupName;
 		let doAddGroupLabel = false;
 		let cssTag = argObjGroup.pCssTag;
-		if(argIsHighGroup){
-			outerCssTag = 'csHigherGroupWaku';
-			outerLabelCssTag = 'csHigherGroupLbl';
-			outerId = argObjGroup.pHigherGroupId;
-			innerId = argObjGroup.pHigherGroupInnerId;
-			groupName = argObjGroup.pHigherGroupName;
+
+		if(argObjGroup.pMemCount>1){
 			doAddGroupLabel = true;
-			cssTag = argObjGroup.pHigherCssTag;
-		}else{
-			if(argObjGroup.pMemCount>1){
-				doAddGroupLabel = true;
-			}
 		}
 
 		//内部領域
@@ -905,6 +914,54 @@ function makeUI(){
 		return objInnerWaku;
 	}
 
+	function makeShopGroup(argObjShop,addObjTarget){
+		if(argObjShop.pElmObject != null){
+			//既存の場合は処理しない
+			return;
+		}
+		let outerCssTag = 'csHigherGroupWaku';
+		let outerLabelCssTag = 'csHigherGroupLbl';
+		let outerId = argObjShop.pShopId;
+		let innerId = argObjShop.pShopInnerId;
+		let groupName = argObjShop.pShopName;
+		let cssTag = argObjShop.pCssTag;
+
+		//内部領域
+		//以下を格納する
+		//・下位グループ
+		//・ポーズ名
+
+		//グループ名を格納する
+		let objOuterWaku = document.createElement('div');
+		objOuterWaku.id = outerId;
+		objOuterWaku.className = outerCssTag + ' ' + g_TagGroupTag + ' ' + cssTag;
+
+		let objCheck = document.createElement('input');
+		objCheck.type = 'checkbox';
+		objCheck.name = 'btnGroupList';
+		objCheck.className = 'csGroupChk';
+		objCheck.id = 'chk_'+objOuterWaku.id;	//ラベルとの紐づけ用
+		objCheck.custId = innerId;
+		objCheck.onchange = openCloseWaku;
+		objOuterWaku.appendChild(objCheck);
+
+		objOuterWaku.appendChild(makePartsLabel(objCheck.id,'csGroupCmnLbl ' + outerLabelCssTag,groupName));
+
+		//グループ内の情報格納枠
+		let objInnerWaku = document.createElement('div');
+		objInnerWaku.id = innerId;
+		objOuterWaku.appendChild(objInnerWaku);
+
+		if(argObjShop.pIsSystem){
+			//システムグループは先頭に挿入する
+			addObjTarget.prepend(objOuterWaku);
+		}else{
+			addObjTarget.appendChild(objOuterWaku);
+		}
+
+		argObjShop.pElmObject = objInnerWaku;
+	}
+
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
 	//==============================
@@ -918,12 +975,14 @@ function makeUI(){
 		let objCreator = g_uuid2O[oneUuid];
 		let cssTag = '.' + objCreator.pCssTag;
 		if(objCreator.pShopName!=null){
+			//お店の名前がある場合
 			if(objCreator.pShopName in shopList){
 				shopList[objCreator.pShopName] += ',' + cssTag;
 			}else{
 				shopList[objCreator.pShopName] = cssTag;
 			}
 		}else{
+			//お店の名前がない場合
 			nameList[objCreator.pName] = cssTag;
 		}
 	}
@@ -992,40 +1051,24 @@ function makeUI(){
 	//==============================
 	g_objMain.appendChild(g_poseTreeList);
 
-	//==============================
-	//正規化した名前のソート
-	//==============================
-	//空白の数などで並びが変わってしまうため
-	let normalKeys = Object.keys(g_objNormalizationNameList);
-	normalKeys.sort(compareLowerCase);
-
 	//------------------------------
 	//グループ枠を先に作成する
 	//------------------------------
-	//システムグループが存在する場合、先に作成する
-	for(let systemGroup in g_systemGroupList){
-		let oneGroup = g_systemGroupList[systemGroup];
-		if(oneGroup!=null){
-			makeHigherGroup(oneGroup,true,g_poseTreeList);
-		}
-	}
-	//通常のグループ枠を作成する
-	//※ソート順：上位グループのソート順ではなく
-	//				下位グループのソート順に処理を行う
-	//				（グループは長さが短くなるので、フルネームと異なる可能性があるため）
-	for(let groupName in g_groupNames){
-		let oneGroup = g_groupNames[groupName];
+	//上位グループの作成
+	let higerGroupKeys = Object.keys(g_higerGroupList);
+	higerGroupKeys.sort(compareLowerCase);
 
-		let objHigherIn = null;
-		if(oneGroup.pHigherGroupName!=null){
-			//上位グループがある場合、上位グループを先に作成する
-			objHigherIn = makeHigherGroup(oneGroup,true,g_poseTreeList);
-		}
-
-		//通常のグループを作成する
-		let addTarget = (objHigherIn == null)?g_poseTreeList:objHigherIn;
-		makeHigherGroup(oneGroup,false,addTarget);
+	for(let oneId of higerGroupKeys){
+		let objShopGroupInfo = g_higerGroupList[oneId];
+		makeShopGroup(objShopGroupInfo,g_poseTreeList);
 	}
+	//todo:上位グループがない場合、通常グループはポーズ名の並びになるので
+	//全体で俯瞰した時に並び順がヘンに見える。
+
+	//空白の数などで並びが変わってしまうため
+	//正規化した後並び替える
+	let normalKeys = Object.keys(g_objNormalizationNameList);
+	normalKeys.sort(compareLowerCase);
 
 	//ポーズリストを作成する
 	for(let oneNormalName of normalKeys){
@@ -1036,15 +1079,44 @@ function makeUI(){
 			//バリエーションは対象外
 			continue;
 		}
-		if(objPose.pGroupInfo == null){
-			//保険
-			continue;
+
+		//グループを作成する
+		let elmUpperObject = null;
+		let objGroup = objPose.pGroupInfo;
+		if(objGroup!=null){
+			//グループ情報が存在する場合
+			elmUpperObject = objGroup.pElmObject;
+
+			if(elmUpperObject == null){
+				//console.log('グループ情報が未作成の場合:'+objGroup.pGroupName);
+				//グループ情報が未作成の場合
+				let addTarget = g_poseTreeList;
+				let level = 1;
+
+				let objShopGroupInfo = objPose.pShopGroupInfo;
+				if(objShopGroupInfo != null){
+					//上位グループが作成されている場合
+					//console.log('上位グループが作成されている場合:' + objShopGroupInfo.pShopName);
+					addTarget = objShopGroupInfo.pElmObject;
+					++level;
+				}
+				//グループ未作成なら
+				objGroup.pElmObject = elmUpperObject = makeHigherGroup(objGroup,level,addTarget);
+				objGroup.pLevel = level;
+			}
+		}else{
+			//お店グループがあれば、ツリー直下
+			elmUpperObject = g_poseTreeList;
 		}
+
 		//------------------------------
 		//radioとラベルを囲む枠
 		//------------------------------
 		//console.log(objPose.pName);
-		let strGroupLbl = (objPose.pGroupInfo.pMemCount==1)?'csNoGroupLbl' + objPose.pGroupInfo.pLevel:'csInGroupLbl'
+		let strGroupLbl = 'csNoGroupLbl';
+		if(objGroup != null){
+			strGroupLbl = (objGroup.pMemCount==1)?'csNoGroupLbl' + objGroup.pLevel:'csInGroupLbl';
+		}
 		let strClassName = 'csPoseLbl '+ strGroupLbl;
 		let objWaku = makePartsPoseName(objPose,g_TagGroupTag + ' ' + objPose.pCreatorInfo.pCssTag,strClassName);
 		objPose.pElmScrollTarget = objWaku;
@@ -1071,9 +1143,7 @@ function makeUI(){
 				}
 			}
 		}
-
-		let objInnerWaku = document.getElementById(objPose.pGroupInfo.pGroupInnerId);
-		objInnerWaku.appendChild(objWaku);
+		elmUpperObject.appendChild(objWaku);
 	}
 
 	g_namesPoses = document.getElementsByName('namesPoseList');
@@ -1374,7 +1444,6 @@ function makeVariationInfo(){
 			objCreatorPoseList[creatorUuid] = new Object();
 		}
 		let objCreatorPose = objCreatorPoseList[creatorUuid];
-		//let keyVal = objPose.pName;
 		let keyVal = cnvNum(objPose.pName);
 		objCreatorPose[keyVal] = objPose.pName;
 	}
@@ -1407,12 +1476,50 @@ function makeVariationInfo(){
 	}
 }
 
+//お店情報
+function makeShopGroupInfo(argIsShop,argName,argId){
+	let isSystem = (g_numericGroupName==argName);
+
+	let objShopGroupInfo = {
+			//作成元	true:お店情報から
+			//			false:ポーズ名から
+			 pIsShop:argIsShop
+			//objHigherObjectList格納用のキー
+			//ソートできるように名称を設定
+			,pKey:cnvNum(argName) + '\t' + argId
+			//お店の名前
+			,pShopName:argName
+			//お店のID①	※HTMLに使える
+			,pShopId : argId
+			//お店のID②	※HTMLに使える
+			,pShopInnerId : 'list' + argId
+			//製作者情報のcssTag	※HTMLに使える
+			,pCssTag : null
+			//内包するポーズの数
+			,pPoseCount:0
+			//ポーズオブジェクトリスト（キー：ポーズ名）
+			,pPoseInfoList:new Object()
+			//作業用(キーをpCssTagに使う)
+			,pWorkCssTagList : new Object()
+
+			//下位構成が設定されるべきオブジェクト
+			,pElmObject	:null
+
+
+			//システムグループか
+			,pIsSystem : isSystem
+
+			}
+	return objShopGroupInfo;
+}
+
+
 //名前でグループ化する
 function groupingByName(){
 	//グループ化の際に文字列を区切る
 	const wordSeparatorForGroupRegExp = /(\W)/;
 
-	let objGroup = new Object();
+	let objGroupList = new Object();
 
 	//	argTargetStringがargBaseStringに文字を足したものか判定
 	//	上記の条件を満たしていても、以下のどちらかを満たしていない場合、falseとする
@@ -1459,12 +1566,12 @@ function groupingByName(){
 			,pGroupId :null
 			,pGroupInnerId : null
 			,pMemCount:0
+			,pElmObject:null
 
 			,pLevel	: 1	//1:最上位 2～サブグループ	※0始まりでもいいが、別で使うかもしれぬので
-			,pHigherGroupName:null
+						//これはUI作成中の記憶領域として使用
+
 			,pHigherGroupId:null
-			,pHigherGroupInnerId:null
-			,pHigherCssTag:null
 			};
 	}
 
@@ -1689,6 +1796,83 @@ function groupingByName(){
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 	//==============================
+	//お店リストを作成
+	//==============================
+	LabelMakeShopNameList: {
+		let shopSeq = 0;
+		//お店情報を全件処理
+		for(let oneUuid in g_shopInfo){
+			let objCreator = g_uuid2O[oneUuid];
+			let cssTag = objCreator.pCssTag;
+			let objShopInfo = g_shopInfo[oneUuid];
+
+			if(objShopInfo.pIsUsed){
+				//使用されている情報のみを対象とする
+				let shopName = objShopInfo.pShopName;
+				if(!(shopName in g_shopName)){
+					let shopGroupId = 'idShop_' + shopSeq++;
+
+					let objShopGroupInfo = makeShopGroupInfo(true,shopName,shopGroupId);
+
+					g_shopName[shopName] = objShopGroupInfo;
+					g_higerGroupList[objShopGroupInfo.pKey] = objShopGroupInfo;
+				}
+				g_shopName[shopName].pWorkCssTagList[cssTag] = objShopInfo;
+			}
+		}
+		//お店情報のpCssTagを設定する
+		for (let oneShopName in g_shopName){
+			let objShopNameInfo = g_shopName[oneShopName];
+			let objCssTagList = objShopNameInfo.pWorkCssTagList;
+			let cssKeys = Object.keys(objCssTagList);
+
+			objShopNameInfo.pCssTag = cssKeys.join(' ');
+			//console.log('shopName['+oneShopName+']pShopGroupId['+objShopNameInfo.pShopGroupId+']pShopGroupInnerId['+objShopNameInfo.pShopGroupInnerId+']pCssTag['+objShopNameInfo.pCssTag+']pCssTagList['+objCssTagList+']')
+
+			//お店情報の各アイテムに、お店の名前情報を設定する
+			for(let oneCssTag in objCssTagList){
+				let objShopInfo = objCssTagList[oneCssTag];
+				objShopInfo.pShopNameInfo = objShopNameInfo;
+			}
+		}
+
+		//各ポーズにお店情報を埋め込む
+		for(let oneName in g_nm2O){
+			let objPose = g_nm2O[oneName];
+			let creatorUuid = objPose.pUuid;
+			if(creatorUuid in g_shopInfo){
+				//お店情報の有無
+				let objShopInfo = g_shopInfo[creatorUuid];
+				if (objPose.pShopGroupInfo == null){
+					objPose.pShopGroupInfo = objShopInfo.pShopNameInfo;
+				}
+				let objShopGroupInfo = objPose.pShopGroupInfo;
+				objShopGroupInfo.pPoseInfoList[oneName] = objPose;
+				objShopGroupInfo.pPoseCount ++;
+//			}else{
+//				console.log('存在しない:'+oneName);
+			}
+		}
+
+//		//debug
+//		for(let oneUuid in g_shopInfo){
+//			let objShopInfo = g_shopInfo[oneUuid];
+//			if(objShopInfo.pIsUsed){
+//				let objShopNameInfo = objShopInfo.pShopNameInfo;
+//				console.log('shopInfo:'
+//							+'pShopName['+objShopNameInfo.pShopName+']'
+//							+'pShopId['+objShopNameInfo.pShopId+']'
+//							+'pShopInnerId['+objShopNameInfo.pShopInnerId+']'
+//							+'pPoseCount['+objShopNameInfo.pPoseCount+']'
+//							+'pPoseInfoList['+objShopNameInfo.pPoseInfoList+']'
+//							+'pCssTag['+objShopNameInfo.pCssTag+']'
+//							+'pWorkCssTagList['+objShopNameInfo.pWorkCssTagList+']'
+//							);
+//			}
+//		}
+	}
+
+	//==============================
 	//上の行・下の行での比較を行う。
 	//==============================
 	LabelComparePose: {
@@ -1749,11 +1933,11 @@ function groupingByName(){
 					objPoseList[oneName] = objPose.pName;
 
 					//グループに属するファイルが存在する場合のみ処理を行う。
-					if(!(oneCandidate in objGroup)){
-						objGroup[oneCandidate] = makeNewGroup(objPoseList);
+					if(!(oneCandidate in objGroupList)){
+						objGroupList[oneCandidate] = makeNewGroup(objPoseList);
 					}else{
 						//既存であれば、ファイルリストをコピーする
-						fullNameMove(objGroup,oneCandidate,null,false,objPoseList);
+						fullNameMove(objGroupList,oneCandidate,null,false,objPoseList);
 					}
 				}
 			}
@@ -1778,16 +1962,20 @@ function groupingByName(){
 					objPoseList[oneName] = objPose.pName;
 
 					//グループに属するファイルが存在する場合のみ処理を行う。
-					if(!(oneCandidate in objGroup)){
-						objGroup[oneCandidate] = makeNewGroup(objPoseList);
+					if(!(oneCandidate in objGroupList)){
+						objGroupList[oneCandidate] = makeNewGroup(objPoseList);
 					}else{
 						//既存であれば、ファイルリストをコピーする
-						fullNameMove(objGroup,oneCandidate,null,false,objPoseList);
+						fullNameMove(objGroupList,oneCandidate,null,false,objPoseList);
 					}
 				}
 			}
 		}
 	}
+
+//	for(let oneGroupName in objGroupList){
+//		console.log('A:'+oneGroupName+':'+Object.keys(objGroupList[oneGroupName].pPoseList).length);
+//	}
 
 	//==============================
 	//グループ化されなかったものを追加
@@ -1804,34 +1992,42 @@ function groupingByName(){
 			let poseName = objPose.pName;
 			let groupName = objPose.pNormalizationName;
 			//console.log('poseName['+poseName+']');
-			let oneGroup = (objGroup[groupName] = makeNewGroup(null));
-			oneGroup.pPoseList[poseName] = poseName;
+			let objGroup = (objGroupList[groupName] = makeNewGroup(null));
+			objGroup.pPoseList[poseName] = poseName;
 		}
 	}
+
+//	for(let oneGroupName in objGroupList){
+//		console.log('B:'+oneGroupName);
+//	}
 
 	//==============================
 	//グループ名の正規化
 	//==============================
 	LabelNormalizationGroup:	{
 		console.log('LabelNormalizationGroup');
-		for(let oneGroupName in objGroup){
+		for(let oneGroupName in objGroupList){
 			//末尾の不要な文字列を削除する
 			let newGroupName = oneGroupName.replace(g_delLastNumericRegExp,'$1');
 
-			if(!(newGroupName in objGroup)){
+			if(!(newGroupName in objGroupList)){
 				//console.log('newGroupName:['+newGroupName+']'+oneGroupName);
-				objGroup[newGroupName] = makeNewGroup(null);
-				fullNameMove(objGroup,newGroupName,oneGroupName,true);
+				objGroupList[newGroupName] = makeNewGroup(null);
+				fullNameMove(objGroupList,newGroupName,oneGroupName,true);
 			}
 		}
 	}
+
+//	for(let oneGroupName in objGroupList){
+//		console.log('C:'+oneGroupName);
+//	}
 
 	//==============================
 	//まとめられるグループの対応①
 	//==============================
 	LabelTogetherGroup01:	{
 		console.log('LabelTogetherGroup01');
-		let groupKeys = Object.keys(objGroup);
+		let groupKeys = Object.keys(objGroupList);
 		//	まるめ後の比較
 		//	末尾数字の差異などは、同じグループと判断する
 		groupKeys.sort();
@@ -1843,12 +2039,12 @@ function groupingByName(){
 				if(mergeGroupName!=null){
 					//グループの統合を行う
 					//グループに属するファイルが存在する場合
-					if(!(mergeGroupName in objGroup)){
-						objGroup[mergeGroupName] = makeNewGroup(null);
+					if(!(mergeGroupName in objGroupList)){
+						objGroupList[mergeGroupName] = makeNewGroup(null);
 					}
 					//mergeGroupNameに情報を移動する
-					fullNameMove(objGroup,mergeGroupName,groupNamePre,true);
-					fullNameMove(objGroup,mergeGroupName,groupName,true);
+					fullNameMove(objGroupList,mergeGroupName,groupNamePre,true);
+					fullNameMove(objGroupList,mergeGroupName,groupName,true);
 
 					groupNamePre = mergeGroupName;
 					//console.log('merge mergeGroupName:['+mergeGroupName+']groupName:['+groupName+']');
@@ -1863,6 +2059,10 @@ function groupingByName(){
 		}
 	}
 
+//	for(let oneGroupName in objGroupList){
+//		console.log('D:'+oneGroupName);
+//	}
+
 	//==============================
 	//まとめられるグループの対応②
 	//==============================
@@ -1870,7 +2070,7 @@ function groupingByName(){
 		console.log('LabelTogetherGroup02');
 		//今のグループ名に、前のグループ名が含まれている場合
 		//前のグループに統合する
-		let groupKeys = Object.keys(objGroup);
+		let groupKeys = Object.keys(objGroupList);
 		groupKeys.sort();
 
 		let groupNamePre = null;
@@ -1879,7 +2079,7 @@ function groupingByName(){
 				if(myStartsWith(groupName,groupNamePre)){
 					//console.log('merge groupNamePre:['+groupNamePre+']groupName:['+groupName+']');
 
-					fullNameMove(objGroup,groupNamePre,groupName,true);
+					fullNameMove(objGroupList,groupNamePre,groupName,true);
 
 					groupName = groupNamePre;
 				}else{
@@ -1890,23 +2090,24 @@ function groupingByName(){
 		}
 	}
 
+//	for(let oneGroupName in objGroupList){
+//		console.log('E:'+oneGroupName);
+//	}
+
 	//==============================
 	//上位のグループ情報を作成する
 	//==============================
 	let objHigherGroupName = new Object();
 
-	//todo:お店で分けられるものをグループ化する
-	for(let oneUuid in g_shopInfo){
-		objShop = g_shopInfo[oneUuid];
-					//pShopName
-	}
+	//キー：higherGroupId
+	let objHigherObjectList = new Object();
 
 	//グループ名の共通部分をチェックする
 	//グループ情報を作成
 	//大文字・小文字を区別せずソートした順に処理を行う
 	LabelMakeHigherGroup: {
 		console.log('LabelMakeHigherGroup');
-		let groupKeys = Object.keys(objGroup);
+		let groupKeys = Object.keys(objGroupList);
 		groupKeys.sort(compareLowerCase);
 
 		let higherGroupSeq = 0;
@@ -2024,9 +2225,9 @@ function groupingByName(){
 
 				//全ての上位グループ名に対して処理を行う
 				for(let groupName of groupKeys){
-					let oneGroup = objGroup[groupName];
+					let objGroup = objGroupList[groupName];
 
-					if(oneGroup.pHigherGroupName!=null){
+					if(objGroup.pHigherGroupId!=null){
 						//すでに上位が決まっている場合は、処理しない
 						continue;
 					}
@@ -2044,29 +2245,21 @@ function groupingByName(){
 					}
 
 					if(doSet){
-						//console.log('  set higherGroupName['+higherGroupName+']groupName['+groupName+']');
-						if(higherGroupName in g_systemGroupList){
-							//システムグループの場合
-							if(g_systemGroupList[higherGroupName]==null){
-								//最初に検出したグループ情報を設定する
-								g_systemGroupList[higherGroupName] = oneGroup;
-							}
-						}
+						let objShopGroupInfo = makeShopGroupInfo(false,higherGroupName,higherGroupId);
+						objHigherObjectList[higherGroupId] = objShopGroupInfo;
 
-						oneGroup.pHigherGroupId = higherGroupId;
-						oneGroup.pHigherGroupInnerId = 'list' + higherGroupId;
-						oneGroup.pHigherGroupName = higherGroupName;
-						oneGroup.pLevel ++;
+						objGroup.pHigherGroupId = higherGroupId;
 
 						//上位グループに属するポーズ名のリストを作成する
 						if(!(higherGroupName in objHigherGroupName)){
 							objHigherGroupName[higherGroupName] = new Object();
 						}
 						let objPoseListInHigherGroupName = objHigherGroupName[higherGroupName];
-						let onePoseList = oneGroup.pPoseList;
-						for(let oneFile in onePoseList){
+						let objPoseList = objGroup.pPoseList;
+						for(let oneFile in objPoseList){
 							objPoseListInHigherGroupName[oneFile] = oneFile;
 						}
+
 					}else{
 						//console.log('noset higherGroupName['+higherGroupName+']groupName['+groupName+']');
 					}
@@ -2086,6 +2279,9 @@ function groupingByName(){
 		}
 	}
 
+//	for(let oneGroupName in objGroupList){
+//		console.log('F:'+oneGroupName);
+//	}
 
 	//==============================
 	//グループ情報を作成
@@ -2093,98 +2289,108 @@ function groupingByName(){
 	//・g_groupNamesを作成
 	//・g_nm2OのpGroupInfoに反映
 	//
+	g_groupNames = new Object();
 	let objHigherGroupCssTag = new Object();
 	LabelSetGroupInfomation:	{
 		console.log('LabelSetGroupInfomation');
-		g_groupNames = new Object();
 
 		//大文字・小文字を区別せずソートした順に処理を行う
-		let groupKeys = Object.keys(objGroup);
+		let groupKeys = Object.keys(objGroupList);
 		groupKeys.sort(compareLowerCase);
 		//console.log(groupKeys);
+
 		let groupSeq = 0;
 		for(let groupName of groupKeys){
-			let oneGroup = objGroup[groupName];
-			let onePoseList = oneGroup.pPoseList;
+			let objGroup = objGroupList[groupName];
+			let objPoseList = objGroup.pPoseList;
+			let memCount = Object.keys(objPoseList).length;
 
-			//console.log('groupName['+groupName+']/count:'+Object.keys(onePoseList).length);
+			//上位グループをお店情報に置き換える
+			if (objGroup.pHigherGroupId != null){
+				if(objGroup.pHigherGroupId in objHigherObjectList){
+					//上位グループが存在する場合は置き換える
 
-			oneGroup.pGroupId = 'idGroup' + groupSeq++;
-			oneGroup.pGroupInnerId = 'list' + oneGroup.pGroupId;
-			oneGroup.pMemCount = Object.keys(onePoseList).length;
-			oneGroup.pGroupName = groupName;
+					for(let oneFile in objPoseList){
+						let objPose = g_nm2O[oneFile];
+
+						if (objPose.pShopGroupInfo != null){
+							//お店情報が設定済みの場合は、置き換えない。
+							continue;
+						}
+
+						let objShopGroupInfo = objHigherObjectList[objGroup.pHigherGroupId];
+						objPose.pShopGroupInfo = objShopGroupInfo;
+
+						objShopGroupInfo.pPoseInfoList[oneFile] = objPose;
+						objShopGroupInfo.pPoseCount ++;
+
+						let objCreator = objPose.pCreatorInfo;
+						let cssTag = objCreator.pCssTag;
+
+						objShopGroupInfo.pWorkCssTagList[cssTag] = cssTag;
+
+						g_higerGroupList[objShopGroupInfo.pKey] = objShopGroupInfo;
+					}
+				}
+			}
 
 			//グループ情報の設定
-			g_groupNames[groupName] = oneGroup;
+			g_groupNames[groupName] = objGroup;
 
 			//グループメンバーにも情報を設定する
-			for(let oneFile in onePoseList){
-				g_nm2O[oneFile].pGroupInfo = oneGroup;
+			//※上位がない場合でも設定する
+			for(let oneFile in objPoseList){
+				g_nm2O[oneFile].pGroupInfo = objGroup;
 			}
+
+			//console.log('groupName['+groupName+']/count:'+Object.keys(objPoseList).length);
+
+			//グループID①：連番（０～
+			objGroup.pGroupId = 'idGroup' + groupSeq++;
+			//グループID②：'list'+グループID①
+			objGroup.pGroupInnerId = 'list' + objGroup.pGroupId;
+			//グループ内のポーズ数
+			objGroup.pMemCount = memCount;
+			//グループ名
+			objGroup.pGroupName = groupName;
 
 			labelSetGroupCssTag:{
 				let objUniqCssTag = new Object();
-				let allCreatorTags = null;
-				for(let oneFile in onePoseList){
+				for(let oneFile in objPoseList){
 					let objPose = g_nm2O[oneFile];
 					let objCreator = objPose.pCreatorInfo;
 					let creatorCssTag = objCreator.pCssTag;
 
-					if (!(creatorCssTag in objUniqCssTag)){
-						objUniqCssTag[creatorCssTag] = null;	//値はなんでもよい
-						if(allCreatorTags!=null){
-							allCreatorTags += ' ' + creatorCssTag;
-						}else{
-							allCreatorTags = creatorCssTag;
-						}
-					}
+					objUniqCssTag[creatorCssTag] = null;	//値はなんでもよい
 				}
-				oneGroup.pCssTag = allCreatorTags;
+				let cssKeys = Object.keys(objUniqCssTag);
+
+				objGroup.pCssTag = cssKeys.join(' ');
 			}
-			labelSetHigherGroupCssTag:{
+		}
+	}
 
-				let higherGroupName = oneGroup.pHigherGroupName;
-
-				//グループへの製作者タグの設定
-				let objUniqCssTag = new Object();
-				let allCreatorTags = null;
-				if(higherGroupName != null){
-					//上位グループに関しては、上位の内容で処理する
-					onePoseList = objHigherGroupName[higherGroupName];
-
-					if(higherGroupName in objHigherGroupCssTag){
-						allCreatorTags = objHigherGroupCssTag[higherGroupName];
-					}
-					//console.log('higherGroupName['+higherGroupName+']/count:'+Object.keys(onePoseList).length+'/allCreatorTags['+allCreatorTags+']');
-				}
-				if(allCreatorTags == null){
-					//グループに属するポーズの製作者タグを重複しないように設定する。
-					for(let oneFile in onePoseList){
-						let objPose = g_nm2O[oneFile];
-						let objCreator = objPose.pCreatorInfo;
-						let creatorCssTag = objCreator.pCssTag;
-
-						if (!(creatorCssTag in objUniqCssTag)){
-							objUniqCssTag[creatorCssTag] = null;	//値はなんでもよい
-							if(allCreatorTags!=null){
-								allCreatorTags += ' ' + creatorCssTag;
-							}else{
-								allCreatorTags = creatorCssTag;
-							}
-						}
-					}
-				}
-
-				if(allCreatorTags!=null){
-					oneGroup.pHigherCssTag = allCreatorTags;
-
-					if(higherGroupName != null){
-						if(!(higherGroupName in objHigherGroupCssTag)){
-							objHigherGroupCssTag[higherGroupName] = allCreatorTags;
-						}
-					}
-				}
+	LabelSetHigerGroupCssTag :{
+		for(let oneId in g_higerGroupList){
+			let objShopGroupInfo = g_higerGroupList[oneId];
+			if(! objShopGroupInfo.pIsShop){
+				let objCssTagList = objShopGroupInfo.pWorkCssTagList;
+				let cssKeys = Object.keys(objCssTagList);
+				objShopGroupInfo.pCssTag = cssKeys.join(' ');
 			}
+
+//			//debug
+//			console.log('shopInfo:'
+//						+'oneId['+oneId+']'
+//						+'pIsShop['+objShopGroupInfo.pIsShop+']'
+//						+'pShopName['+objShopGroupInfo.pShopName+']'
+//						+'pShopId['+objShopGroupInfo.pShopId+']'
+//						+'pShopInnerId['+objShopGroupInfo.pShopInnerId+']'
+//						+'pPoseCount['+objShopGroupInfo.pPoseCount+']'
+//						+'pPoseInfoList['+objShopGroupInfo.pPoseInfoList+']'
+//						+'pCssTag['+objShopGroupInfo.pCssTag+']'
+//						+'pWorkCssTagList['+objShopGroupInfo.pWorkCssTagList+']'
+//						);
 		}
 	}
 
@@ -2293,7 +2499,7 @@ function makeBaseHtml(){
 		objLabel.className = argLabelClassName;
 		if(argLabelText != null){
 			switch(typeof argLabelText){
-			case "string":
+			case 'string':
 				objLabel.innerHTML = argLabelText.replace(' ','&nbsp;').replace('<','&lt;').replace('>','&gt;');
 				break;
 			default:
@@ -2353,7 +2559,7 @@ function makeBaseHtml(){
 
 	g_selCreator = addElmSelect(elmWakuCreatorList,'selCreatorIdx',function(){changeCreator();});
 	let optAll = document.createElement('option');
-	optAll.text = '---all creators---';
+	optAll.text = '---all---';
 	optAll.value = 'all';
 	g_selCreator.appendChild(optAll);
 	addElmButton(elmWakuCreatorList,null,'csActBtn','CLR',function(){clearCreatorList();},true);
@@ -2492,6 +2698,7 @@ function setFieldset(argDisabled){
 function setIconColor(argVariable,argDisabled){
 	let rootStyle = document.documentElement.style;
 //	let disabledColor = rootStyle.getPropertyValue('--mClDisabled');
+	//↑取得できないので、↓でリテラルで設定
 	let disabledColor = '#a9a9a9';
 	let colorValue = (argDisabled)?disabledColor:'black';
 
