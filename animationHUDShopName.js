@@ -54,12 +54,15 @@ function initShopInfo(){
 	setShopInfo('PosESioN Store','d9c86cd6-0bca-4995-9d7c-84c3bc702f74','Dahriel Nova');
 	setShopInfo('Pose Maniacs','561a65e5-1b13-40b9-bd28-28f1d0d73c17','Jaay Tiratzo');
 	setShopInfo('RIZZI Animation','46445fa7-2ea7-42c8-bca2-99834642e67c','Shelly Gurbux');
+	setShopInfo('R.Bento','c4c78576-f222-4516-afa5-171bd75180bd','Rou Aurelia');
 	setShopInfo('SAPA','ee61aafd-4029-43bd-a209-5f34859dd6cb','NadySapa Resident');
 	setShopInfo('STUN','ad792a19-2f32-45a3-8ede-0af08271d6fa','Vidorra Conundrum');
 	setShopInfo('STUN','bb8fcf61-f5cd-44f5-b750-b573740a010e','patricksillver Resident');
 	setShopInfo('Sari-Sari','1c3d8b18-f975-4dd7-8d4e-760d6fb70336','AbbyAnne Resident');
 	setShopInfo('Secret Poses','6fc5cd68-c099-49e9-98ea-58bc6dff97c4','SweetDaniellee Resident');
+	setShopInfo('Sex\'i Poses','1ff3a56e-8633-42a7-a615-8257dd2eae13','Lila Yheng');
 	setShopInfo('Space Cadet','3f683453-d06e-4ded-8494-36f72e90aae1','Alien Daddy');
+	setShopInfo('studiOneiro','af69d7bc-b41f-4477-b483-a08db14e4133','Anaya Twine');
 	setShopInfo('Sweet Art','0eb2bdd2-dd0b-4ed4-a9ce-295e3017cb3e','Maria1995uruguay Resident');
 	setShopInfo('Sync\'D Motion','dd123452-8717-4121-8bf7-23e878b88fdd','syncd Resident');
 	setShopInfo('The Owl','4b028af7-f489-429a-8560-849512b34027','LiFetisova Resident');

@@ -1802,7 +1802,12 @@ function groupingByName(){
 		let shopSeq = 0;
 		//お店情報を全件処理
 		for(let oneUuid in g_shopInfo){
+			if(!(oneUuid in g_uuid2O)){
+				//お店情報に存在するが、ポーズがcontentsにない場合
+				continue;
+			}
 			let objCreator = g_uuid2O[oneUuid];
+			//console.log(oneUuid+':'+objCreator);
 			let cssTag = objCreator.pCssTag;
 			let objShopInfo = g_shopInfo[oneUuid];
 
