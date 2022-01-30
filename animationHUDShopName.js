@@ -24,8 +24,10 @@ function initShopInfo(){
 	setShopInfo('BodyLanguage SLC','c2bb6076-4560-4d59-a16e-1ca404fd4d23','manmoth Nishi');
 	setShopInfo('Bubble Gum','be6ef88a-fbcf-4b23-a5de-f41c4bf86430','alaiaroxx Resident');
 	setShopInfo('Bubble Gum','c7505cf3-124c-4b24-8588-2661a1e87082','Elizabeth973 Resident');
+	setShopInfo('CKEY Poses','31782627-5961-4ba0-bc49-2598443e7d89','Clarisa Congrejo');
 	setShopInfo('Diversion','778c136d-0f77-4e5a-af7b-abd9c14d365f','Rina Edenflower');
 	setShopInfo('Ecru Couture','fc5faa18-1c4d-41a7-885c-cd18807aeb11','HaniaElaine Resident');
+	setShopInfo('Fluid Poses','1902e687-5de3-4afa-a179-e43bd6481fab','susi Firanelli');
 	setShopInfo('HERA','5a9f1f0c-e3fc-48cc-aac8-89e7a6768b73','MidnightMistxX Resident');
 	setShopInfo('InDiGo','704eede9-0589-49c4-9510-5673d6eed8ad','rashadghost Resident');
 	setShopInfo('K&S','be40a7dd-1236-4845-af20-3d5abe14e204','Katya Salty');
