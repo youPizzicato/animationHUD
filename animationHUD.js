@@ -557,7 +557,7 @@ async function makePoseInfo(argJsonData){
 
 	//名前の正規化
 	//
-	function normalizationName(argPoseName){
+	function normalizationName(argPoseName,argHazShopInfo){
 		let normalName = argPoseName.trim();
 
 		//区切り文字の前後の空白を削除する
@@ -566,9 +566,13 @@ async function makePoseInfo(argJsonData){
 		//連続した空白をまとめる
 		normalName = normalName.replace(/[ ][ ]*/g,' ');
 
-		//先頭の記号を削除
-		normalName = normalName.replace(/^[^a-z0-9]+([a-z0-9]+.*$)/i,'$1');
+		if(!argHazShopInfo){
+			//お店の情報がある場合は、上位グループでまとめる必要がないため
+			//先頭の記号を削除しない
 
+			//先頭の記号を削除
+			normalName = normalName.replace(/^[^a-z0-9]+([a-z0-9]+.*$)/i,'$1');
+		}
 
 		//番号から始まっていたら
 		//※以下のパターンへの対応
@@ -635,7 +639,7 @@ async function makePoseInfo(argJsonData){
 		let objCreator = g_uuid2O[argCreatorUuid];
 
 		//名前の正規化
-		let normalName = normalizationName(argPoseName);
+		let normalName = normalizationName(argPoseName,(argCreatorUuid in g_shopInfo));
 		let modName = modifyForCompare(normalName);
 		//console.log('argPoseName:['+argPoseName+']normalName:['+normalName+']modName:['+modName+']');
 
@@ -716,10 +720,6 @@ async function makePoseInfo(argJsonData){
 		}
 
 		await wrapMakeObjPose(psvIndex,psvName,psvUuid);
-		//let objPose = makeObjPose(psvIndex,psvName,psvUuid);
-
-		//g_nm2O[objPose.pName] = objPose;
-		//g_idx2O[objPose.pIndexNo] = objPose;
 
 		++addPoseCount;
 		updateProgress();
@@ -861,59 +861,56 @@ function makeUI(){
 		return objWaku;
 	}
 
-	//todo:将来的にはmakeShopGroupに置き換わる。
-	//		makeShopGroupは、システムグループの対応をしていないため、まだ置いておく
-	function makeHigherGroup(argObjGroup,argLevel,addObjTarget){
+	function makeGroupElement(argObjGroup,addObjTarget){
 		let outerCssTag = 'csGroupWaku';
-		let outerLabelCssTag = 'csGroupLbl' + argLevel;
-		let outerId = argObjGroup.pGroupId;
+		let outerLabelCssTag = 'csGroupLbl' + argObjGroup.pLevel;
 		let innerId = argObjGroup.pGroupInnerId;
 		let groupName = argObjGroup.pGroupName;
-		let doAddGroupLabel = false;
 		let cssTag = argObjGroup.pCssTag;
 
+		let doAddGroupLabel = false;
 		if(argObjGroup.pMemCount>1){
 			doAddGroupLabel = true;
 		}
+
+		if(argObjGroup.pElmObject!=null){
+			return;
+		}
+		//未作成の場合だけ新規作成
 
 		//内部領域
 		//以下を格納する
 		//・下位グループ
 		//・ポーズ名
-		let objInnerWaku = document.getElementById(innerId);
-		if(objInnerWaku==null){
-			//未作成の場合だけ新規作成
 
-			//グループ名を格納する
-			let objOuterWaku = document.createElement('div');
-			objOuterWaku.id = outerId;
-			objOuterWaku.className = outerCssTag + ' ' + g_TagGroupTag + ' ' + cssTag;
+		//グループ名を格納する
+		let objOuterWaku = document.createElement('div');
+		objOuterWaku.id = argObjGroup.pGroupId;
+		objOuterWaku.className = outerCssTag + ' ' + g_TagGroupTag + ' ' + cssTag;
 
-			if(doAddGroupLabel){
+		if(doAddGroupLabel){
 
-				let objCheck = document.createElement('input');
-				objCheck.type = 'checkbox';
-				objCheck.name = 'btnGroupList';
-				objCheck.className = 'csGroupChk';
-				objCheck.id = 'chk_'+objOuterWaku.id;	//ラベルとの紐づけ用
-				objCheck.custId = innerId;
-				objCheck.onchange = openCloseWaku;
-				objOuterWaku.appendChild(objCheck);
+			let objCheck = document.createElement('input');
+			objCheck.type = 'checkbox';
+			objCheck.name = 'btnGroupList';
+			objCheck.className = 'csGroupChk';
+			objCheck.id = 'chk_'+objOuterWaku.id;	//ラベルとの紐づけ用
+			objCheck.custId = innerId;
+			objCheck.onchange = openCloseWaku;
+			objOuterWaku.appendChild(objCheck);
 
-				objOuterWaku.appendChild(makePartsLabel(objCheck.id,'csGroupCmnLbl ' + outerLabelCssTag,groupName));
-			}
-
-			//グループ内の情報格納枠
-			objInnerWaku = document.createElement('div');
-			objInnerWaku.id = innerId;
-			objOuterWaku.appendChild(objInnerWaku);
-
-			addObjTarget.appendChild(objOuterWaku);
+			objOuterWaku.appendChild(makePartsLabel(objCheck.id,'csGroupCmnLbl ' + outerLabelCssTag,groupName));
 		}
 
-		return objInnerWaku;
+		//グループ内の情報格納枠
+		let objInnerWaku = argObjGroup.pElmObject = document.createElement('div');
+		objInnerWaku.id = innerId;
+		objOuterWaku.appendChild(objInnerWaku);
+
+		addObjTarget.appendChild(objOuterWaku);
 	}
 
+	//上位グループの分を作成する
 	function makeShopGroup(argObjShop,addObjTarget){
 		if(argObjShop.pElmObject != null){
 			//既存の場合は処理しない
@@ -960,6 +957,39 @@ function makeUI(){
 		}
 
 		argObjShop.pElmObject = objInnerWaku;
+
+		//内部グループのdom要素を作成する
+		let objGroupInfoList = argObjShop.pGroupInfoList;
+		if(objGroupInfoList == null){
+			return;
+		}
+
+		let objTargetElement = argObjShop.pElmObject;
+		//グループ名でソートする
+		let normalGroupKeys = Object.keys(objGroupInfoList);
+		if(normalGroupKeys.length == 1){
+			//要素が１つの場合、上位グループ直下にポーズを配置するようにする
+			//	上位グループ
+			//	┗ポーズ
+			for(let oneGroupName of normalGroupKeys){
+				//※このループは要素が１つしかないので１回で終了
+				let objGroup = objGroupInfoList[oneGroupName];
+				objGroup.pLevel = 1;
+				objGroup.pElmObject = objTargetElement;
+			}
+		}else if(normalGroupKeys.length > 1){
+			//内部グループが１より多い場合は、上位グループ内部グループを作る
+			//	上位グループ
+			//	┗下位グループ（この処理で作成）
+			//	　┗ポーズ
+			normalGroupKeys.sort(compareLowerCase);
+
+			for(let oneGroupName of normalGroupKeys){
+				let objGroup = objGroupInfoList[oneGroupName];
+				objGroup.pLevel = 2;
+				makeGroupElement(objGroup,objTargetElement);
+			}
+		}
 	}
 
 	//_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -1044,13 +1074,11 @@ function makeUI(){
 	//フラットなポーズリストを追加
 	//※速度をあげるため、内部要素を追加しておいてから、リストそのものを追加する
 	g_objMain.appendChild(g_poseFlatList);
+	g_namesPosesFlat = document.getElementsByName('namesPoseListFlat');
 
 	//==============================
 	//Tree状のポーズリストを追加
-	//※idで要素を参照するので、先に追加しないといけない
 	//==============================
-	g_objMain.appendChild(g_poseTreeList);
-
 	//------------------------------
 	//グループ枠を先に作成する
 	//------------------------------
@@ -1089,20 +1117,13 @@ function makeUI(){
 
 			if(elmUpperObject == null){
 				//console.log('グループ情報が未作成の場合:'+objGroup.pGroupName);
-				//グループ情報が未作成の場合
+				//グループ情報が未作成の場合（上位グループがない場合）
 				let addTarget = g_poseTreeList;
 				let level = 1;
 
-				let objShopGroupInfo = objPose.pShopGroupInfo;
-				if(objShopGroupInfo != null){
-					//上位グループが作成されている場合
-					//console.log('上位グループが作成されている場合:' + objShopGroupInfo.pShopName);
-					addTarget = objShopGroupInfo.pElmObject;
-					++level;
-				}
-				//グループ未作成なら
-				objGroup.pElmObject = elmUpperObject = makeHigherGroup(objGroup,level,addTarget);
-				objGroup.pLevel = level;
+				objGroup.pLevel = 1;
+				makeGroupElement(objGroup,addTarget);
+				elmUpperObject = objGroup.pElmObject;
 			}
 		}else{
 			//お店グループがあれば、ツリー直下
@@ -1146,8 +1167,11 @@ function makeUI(){
 		elmUpperObject.appendChild(objWaku);
 	}
 
+	//※idで要素を参照するので、先に追加しないといけない
+	//※速度をあげるため、内部要素を追加しておいてから、リストそのものを追加する
+	g_objMain.appendChild(g_poseTreeList);
 	g_namesPoses = document.getElementsByName('namesPoseList');
-	g_namesPosesFlat = document.getElementsByName('namesPoseListFlat');
+
 
 	//チェック状態に応じて初期状態にする
 	openCloseWaku('btnGroup',false);
@@ -1372,9 +1396,19 @@ function makeVariationSub(argPoseKeyList,argPoseNameList){
 				//	②'aaaaaaM'
 				//	上記の場合、②は①のバリエーションと判断する
 
-				let diffstr = (poseNameTarget.slice(poseNameBase.length)).trim();
-				if(!diffstr.substr(0,1).match(g_allNumericRegExp)){
+				let diffstr = poseNameTarget.slice(poseNameBase.length);
+				let diffstrTrim  = diffstr.trim();
+				if(!diffstrTrim.substr(0,1).match(g_allNumericRegExp)){
+					//差異が数値だけではない場合は、バリエーションと判断する
 					setVariarion(objPose,objPoseBase);
+				}else{
+					//差異が数値だけの場合
+					if(diffstr.match(/ [0-9]+$/)){
+						//以下の２つはバリエーション扱いする
+						//aaaaaa
+						//aaaaaa 1	←同じものをcontentsにいれた時に発生するやつ
+						setVariarion(objPose,objPoseBase);
+					}
 				}
 			}else {
 				//SAPA対応
@@ -1508,6 +1542,10 @@ function makeShopGroupInfo(argIsShop,argName,argId){
 
 			//システムグループか
 			,pIsSystem : isSystem
+
+			//内部で持つグループの情報
+			//	key:グループ名 item:グループ情報
+			,pGroupInfoList : null
 
 			}
 	return objShopGroupInfo;
@@ -2287,6 +2325,9 @@ function groupingByName(){
 //	for(let oneGroupName in objGroupList){
 //		console.log('F:'+oneGroupName);
 //	}
+//	for(let oneHigherGroupName in objHigherGroupName){
+//		console.log('F(high):'+oneHigherGroupName);
+//	}
 
 	//==============================
 	//グループ情報を作成
@@ -2375,14 +2416,29 @@ function groupingByName(){
 		}
 	}
 
+	//上位グループの情報設定
 	LabelSetHigerGroupCssTag :{
 		for(let oneId in g_higerGroupList){
 			let objShopGroupInfo = g_higerGroupList[oneId];
+
 			if(! objShopGroupInfo.pIsShop){
+				//お店でなければ、cssTagを設定
 				let objCssTagList = objShopGroupInfo.pWorkCssTagList;
 				let cssKeys = Object.keys(objCssTagList);
 				objShopGroupInfo.pCssTag = cssKeys.join(' ');
 			}
+
+			//属するグループ情報の設定
+			let objPoseInfoList = objShopGroupInfo.pPoseInfoList;
+			let objGroupInfoList = new Object();
+			for(let onePoseName in objPoseInfoList){
+				let objPose = objPoseInfoList[onePoseName];
+				let objGroup = objPose.pGroupInfo;
+				if(objGroup != null){
+					objGroupInfoList[objGroup.pGroupName] = objGroup;
+				}
+			}
+			objShopGroupInfo.pGroupInfoList = objGroupInfoList;
 
 //			//debug
 //			console.log('shopInfo:'
@@ -2682,7 +2738,6 @@ function searchPose(){
 
 function setFieldset(argDisabled){
 	document.getElementById('idWakuCreator').disabled = argDisabled;
-//	document.getElementById('idWakuCursor').disabled = argDisabled;
 	document.getElementById('idCtrlRight').disabled = argDisabled;
 
 	g_searchText.disabled = argDisabled;
