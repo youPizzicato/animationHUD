@@ -107,15 +107,19 @@ select {
 	color: var(--mClDisabled);
 }
 
-.csInGroupLbl{margin-left:0.5em;}
 
-/*todo:この差異が必要かチェックする*/
-/*.csNoGroupLbl1{margin-left:0em;}*/
+/*グループ外*/
+/*上位グループ直下*/
+.csNoGroupLbl1{margin-left:0.25em;}
+/*下位グループ直下*/
 .csNoGroupLbl2{margin-left:0.5em;}
 
-/*todo:この差異が必要かチェックする*/
-/*.csGroupLbl1{margin-left:0em;}*/
+.csGroupLbl1{margin-left:0.25em;}
 .csGroupLbl2{margin-left:0.5em;}
+/*上位グループ直下*/
+.csInGroupLbl1{margin-left:0.25em;}
+/*下位グループ直下*/
+.csInGroupLbl2{margin-left:0.5em;}
 
 .csVarLbl{
 	margin: 0;

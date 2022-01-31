@@ -865,7 +865,7 @@ function makeUI(){
 		let outerCssTag = 'csGroupWaku';
 		let outerLabelCssTag = 'csGroupLbl' + argObjGroup.pLevel;
 		let innerId = argObjGroup.pGroupInnerId;
-		let groupName = argObjGroup.pGroupName;
+		let groupName = argObjGroup.pGroupDisplayName;
 		let cssTag = argObjGroup.pCssTag;
 
 		let doAddGroupLabel = false;
@@ -966,14 +966,28 @@ function makeUI(){
 
 		let objTargetElement = argObjShop.pElmObject;
 		//グループ名でソートする
-		let normalGroupKeys = Object.keys(objGroupInfoList);
+		let sortDisplayName = new Object();
+		for(let oneGroupName in objGroupInfoList){
+			let objGroup = objGroupInfoList[oneGroupName];
+
+			let sortKey = objGroup.pGroupDisplayName;
+			//区切り文字の前後の空白を削除する
+			sortKey = sortKey.replace(/[ ]*(\W)[ ]*/g,'$1');
+			//連続した空白をまとめる
+			sortKey = sortKey.replace(/[ ][ ]*/g,' ');
+
+			sortKey = cnvNum(sortKey) + objGroup.pGroupId;
+			sortDisplayName[sortKey] = objGroup;
+		}
+
+		let normalGroupKeys = Object.keys(sortDisplayName);
 		if(normalGroupKeys.length == 1){
 			//要素が１つの場合、上位グループ直下にポーズを配置するようにする
 			//	上位グループ
 			//	┗ポーズ
-			for(let oneGroupName of normalGroupKeys){
+			for(let oneKey of normalGroupKeys){
 				//※このループは要素が１つしかないので１回で終了
-				let objGroup = objGroupInfoList[oneGroupName];
+				let objGroup = sortDisplayName[oneKey];
 				objGroup.pLevel = 1;
 				objGroup.pElmObject = objTargetElement;
 			}
@@ -984,10 +998,17 @@ function makeUI(){
 			//	　┗ポーズ
 			normalGroupKeys.sort(compareLowerCase);
 
-			for(let oneGroupName of normalGroupKeys){
-				let objGroup = objGroupInfoList[oneGroupName];
-				objGroup.pLevel = 2;
-				makeGroupElement(objGroup,objTargetElement);
+			for(let oneKey of normalGroupKeys){
+				let objGroup = sortDisplayName[oneKey];
+				if(objGroup.pGroupDisplayName==''){
+					//todo:↓これも良し悪しあるなぁ
+					//名前がなくなったら上位の直下につくる
+					objGroup.pLevel = 1;
+					objGroup.pElmObject = objTargetElement;
+				}else{
+					objGroup.pLevel = 2;
+					makeGroupElement(objGroup,objTargetElement);
+				}
 			}
 		}
 	}
@@ -1136,7 +1157,7 @@ function makeUI(){
 		//console.log(objPose.pName);
 		let strGroupLbl = 'csNoGroupLbl';
 		if(objGroup != null){
-			strGroupLbl = (objGroup.pMemCount==1)?'csNoGroupLbl' + objGroup.pLevel:'csInGroupLbl';
+			strGroupLbl = (objGroup.pMemCount==1)?'csNoGroupLbl' + objGroup.pLevel:'csInGroupLbl' + objGroup.pLevel;
 		}
 		let strClassName = 'csPoseLbl '+ strGroupLbl;
 		let objWaku = makePartsPoseName(objPose,g_TagGroupTag + ' ' + objPose.pCreatorInfo.pCssTag,strClassName);
@@ -1511,8 +1532,40 @@ function makeVariationInfo(){
 }
 
 //お店情報
-function makeShopGroupInfo(argIsShop,argName,argId){
-	let isSystem = (g_numericGroupName==argName);
+function makeShopGroupInfo(argIsShop,argNameArray,argId){
+	let shopName = argNameArray[0];
+	let isSystem = (g_numericGroupName==shopName);
+
+	//省略用の文字列作成
+	let objAbbreviationName = new Object();
+	for(let i=0,len=argNameArray.length;i<len;++i){
+		let oneName = argNameArray[i];
+		objAbbreviationName[oneName] = oneName;
+	}
+	//名前の長さ（降順）
+	let abbreviationKeys = Object.keys(objAbbreviationName);
+	abbreviationKeys.sort(compareLenRev);
+
+	let index = 0;
+	let arrayAbbreviation = new Array();
+	for(let oneKey of abbreviationKeys){
+		let oneName = objAbbreviationName[oneKey];
+
+		let str = '';
+		for(let c=0,clen=oneName.length;c<clen;++c){
+			let oneChar = oneName.substr(c,1);
+			//	.-[]()^$|* に\をつける
+			if(oneChar.match(/[\.\-\[\]\(\)\^\$\\\|\*]/)){
+				str += '\\';
+			}
+			str += oneChar;
+		}
+		//if(argNameArray[i] != str){
+		//	console.log(argNameArray[i]+":"+str);
+		//}
+		//console.log(str);
+		arrayAbbreviation[index++] = new RegExp('^([^A-Z0-9]*' + str + '[^A-Z0-9]*)','i');
+	}
 
 	let objShopGroupInfo = {
 			//作成元	true:お店情報から
@@ -1520,9 +1573,9 @@ function makeShopGroupInfo(argIsShop,argName,argId){
 			 pIsShop:argIsShop
 			//objHigherObjectList格納用のキー
 			//ソートできるように名称を設定
-			,pKey:cnvNum(argName) + '\t' + argId
+			,pKey:cnvNum(shopName) + '\t' + argId
 			//お店の名前
-			,pShopName:argName
+			,pShopName:shopName
 			//お店のID①	※HTMLに使える
 			,pShopId : argId
 			//お店のID②	※HTMLに使える
@@ -1539,6 +1592,8 @@ function makeShopGroupInfo(argIsShop,argName,argId){
 			//下位構成が設定されるべきオブジェクト
 			,pElmObject	:null
 
+			//略称を含めた名前の配列
+			,pAbbreviationName	:arrayAbbreviation
 
 			//システムグループか
 			,pIsSystem : isSystem
@@ -1600,6 +1655,7 @@ function groupingByName(){
 			//------------------------------
 			//グループ内の製作者を指すcssTagを設定
 			,pGroupName : null
+			,pGroupDisplayName : null	//上位グループ部分を除いたもの
 			,pCssTag : null
 			,pGroupId :null
 			,pGroupInnerId : null
@@ -1855,7 +1911,7 @@ function groupingByName(){
 				if(!(shopName in g_shopName)){
 					let shopGroupId = 'idShop_' + shopSeq++;
 
-					let objShopGroupInfo = makeShopGroupInfo(true,shopName,shopGroupId);
+					let objShopGroupInfo = makeShopGroupInfo(true,objShopInfo.pAbbreviationName,shopGroupId);
 
 					g_shopName[shopName] = objShopGroupInfo;
 					g_higerGroupList[objShopGroupInfo.pKey] = objShopGroupInfo;
@@ -2288,7 +2344,7 @@ function groupingByName(){
 					}
 
 					if(doSet){
-						let objShopGroupInfo = makeShopGroupInfo(false,higherGroupName,higherGroupId);
+						let objShopGroupInfo = makeShopGroupInfo(false,[higherGroupName],higherGroupId);
 						objHigherObjectList[higherGroupId] = objShopGroupInfo;
 
 						objGroup.pHigherGroupId = higherGroupId;
@@ -2399,6 +2455,8 @@ function groupingByName(){
 			objGroup.pMemCount = memCount;
 			//グループ名
 			objGroup.pGroupName = groupName;
+			//表示用
+			objGroup.pGroupDisplayName = groupName;
 
 			labelSetGroupCssTag:{
 				let objUniqCssTag = new Object();
@@ -2436,6 +2494,22 @@ function groupingByName(){
 				let objGroup = objPose.pGroupInfo;
 				if(objGroup != null){
 					objGroupInfoList[objGroup.pGroupName] = objGroup;
+					//表示用グループ名の設定
+					let objAbbreviationName = objShopGroupInfo.pAbbreviationName;
+					for(let i=0,len=objAbbreviationName.length ;i<len ;++i){
+						let objRegExpReplace = objAbbreviationName[i];
+						if((objGroup.pGroupName).match(objRegExpReplace)){
+							let abbreviationName = (objGroup.pGroupName).replace(objRegExpReplace,'');
+							if(abbreviationName==''){
+								//abbreviationName = '|no group|'
+								//省略されて完全に消えた場合以外、表示名に設定
+								//todo:↑とりあえずの対応
+								//todo:同じグループ名になってしまった場合
+							}
+							objGroup.pGroupDisplayName = abbreviationName;
+							break;
+						}
+					}
 				}
 			}
 			objShopGroupInfo.pGroupInfoList = objGroupInfoList;
@@ -2470,6 +2544,9 @@ function compareLowerCaseRev(a, b) {
 	a = (a.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	b = (b.replace(/^[^a-z\d]+/i,'')).toString().toLowerCase();
 	return (a < b) ?  1 :((b < a) ? -1 : 0);
+}
+function compareLenRev(a, b) {
+	return (a.length < b.length) ?  1 :((b.length < a.length) ? -1 : 0);
 }
 //reverseが妙な動きをするので作成
 function compareRev(a, b) {
